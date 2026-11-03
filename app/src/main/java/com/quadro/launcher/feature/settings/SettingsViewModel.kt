@@ -10,10 +10,18 @@ import com.quadro.launcher.core.datastore.SettingsRepository
 import com.quadro.launcher.core.designsystem.AccentColor
 import com.quadro.launcher.core.domain.AppLayout
 import com.quadro.launcher.core.domain.PageId
+import com.quadro.launcher.core.domain.Place
+import com.quadro.launcher.integrations.weather.WeatherRepository
 import com.quadro.launcher.core.domain.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -25,10 +33,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+sealed interface PlaceSearch {
+    data object Idle : PlaceSearch
+    data object Failed : PlaceSearch
+    data class Results(val places: List<Place>) : PlaceSearch
+}
+
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: SettingsRepository,
+    private val weather: WeatherRepository,
 ) : ViewModel() {
 
     val settings: StateFlow<UserSettings> =
@@ -51,6 +67,30 @@ class SettingsViewModel @Inject constructor(
     fun setColumns(columns: Int) = launch { repository.setGridColumns(columns) }
     fun setUse24Hour(value: Boolean?) = launch { repository.setUse24Hour(value) }
     fun setSwipeDown(enabled: Boolean) = launch { repository.setSwipeDownForCommandCenter(enabled) }
+    fun setWeatherEnabled(enabled: Boolean) = launch { repository.setWeatherEnabled(enabled) }
+    fun setWeatherPlace(place: Place?) = launch {
+        repository.setWeatherPlace(place)
+        placeQuery.value = ""
+    }
+    fun setUseFahrenheit(value: Boolean?) = launch { repository.setUseFahrenheit(value) }
+    val systemPrefersFahrenheit: Boolean get() = weather.systemPrefersFahrenheit()
+
+    /** City search for weather: typed text, debounced, then looked up via Open-Meteo. */
+    val placeQuery = MutableStateFlow("")
+    val placeResults: StateFlow<PlaceSearch> = placeQuery
+        .debounce(400)
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .mapLatest { query ->
+            if (query.length < 2) {
+                PlaceSearch.Idle
+            } else {
+                runCatching { weather.searchPlaces(query) }
+                    .fold({ PlaceSearch.Results(it) }, { PlaceSearch.Failed })
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaceSearch.Idle)
+
     fun setWallpaperDim(percent: Int) = launch { repository.setWallpaperDim(percent) }
 
     fun changeWallpaper() {

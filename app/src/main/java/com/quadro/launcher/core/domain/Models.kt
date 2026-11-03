@@ -46,6 +46,10 @@ data class AppShortcut(
     val user: UserHandle,
 )
 
+/** A place the user picked by name, for weather without location access. */
+@Immutable
+data class Place(val name: String, val latitude: Double, val longitude: Double)
+
 @Immutable
 data class UserSettings(
     val accent: AccentColor = AccentColor.Default,
@@ -66,6 +70,11 @@ data class UserSettings(
     val swipeDownForCommandCenter: Boolean = true,
     /** How strongly the launcher darkens the system wallpaper, 0–100 %. 100 hides it completely. */
     val wallpaperDim: Int = DEFAULT_WALLPAPER_DIM,
+    val weatherEnabled: Boolean = true,
+    /** null = use the device's approximate location. */
+    val weatherPlace: Place? = null,
+    /** null = follow the system's temperature unit. */
+    val useFahrenheit: Boolean? = null,
 ) {
     /** Ordered, visible pages. Home can never be hidden. */
     val visiblePages: List<PageId>

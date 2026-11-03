@@ -11,7 +11,7 @@ enum class ActionCategory(val label: String) {
     System("System"),
     Productivity("Productivity"),
     Media("Media"),
-    Launcher("Quadro"),
+    Launcher("Drengr"),
 }
 
 /** How an action takes effect, so the UI can be honest about what the launcher can do directly. */
@@ -19,7 +19,7 @@ enum class ActionKind(val label: String) {
     Direct("Direct"),
     OpensSettings("Settings"),
     OpensApp("App"),
-    Navigation("Quadro"),
+    Navigation("Drengr"),
 }
 
 sealed interface ActionResult {
@@ -51,7 +51,7 @@ class LauncherAction(
     } catch (e: ActivityNotFoundException) {
         ActionResult.Message("No app on this device can handle “$label”.")
     } catch (e: SecurityException) {
-        ActionResult.Message("Android doesn't allow Quadro to do that.")
+        ActionResult.Message("Android doesn't allow Drengr to do that.")
     } catch (e: Exception) {
         ActionResult.Message("Couldn't run “$label”.")
     }

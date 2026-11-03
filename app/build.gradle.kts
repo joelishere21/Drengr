@@ -68,4 +68,6 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     testImplementation(libs.junit)
+    // android.jar only has stubs for org.json; unit tests need the real implementation.
+    testImplementation(libs.org.json)
 }

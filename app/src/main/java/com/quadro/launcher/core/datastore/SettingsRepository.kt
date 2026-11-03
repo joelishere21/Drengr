@@ -13,6 +13,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.quadro.launcher.core.designsystem.AccentColor
 import com.quadro.launcher.core.domain.AppLayout
 import com.quadro.launcher.core.domain.PageId
+import com.quadro.launcher.core.domain.Place
 import com.quadro.launcher.core.domain.UserSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,9 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val SETTINGS_FORMAT = "drengr-settings"
+
+// The file name predates the rename to Drengr; changing it would discard existing settings.
 private val Context.quadroDataStore: DataStore<Preferences> by preferencesDataStore(name = "quadro_settings")
 
 /** Single source of truth for user preferences. Screens never write preferences directly. */
@@ -49,6 +53,9 @@ class SettingsRepository @Inject constructor(
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         val SWIPE_DOWN_CC = booleanPreferencesKey("swipe_down_command_center")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
+        val WEATHER_ENABLED = booleanPreferencesKey("weather_enabled")
+        val WEATHER_PLACE = stringPreferencesKey("weather_place")
+        val USE_FAHRENHEIT = stringPreferencesKey("use_fahrenheit")
     }
 
     val settings: Flow<UserSettings> = store.data
@@ -126,6 +133,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setSwipeDownForCommandCenter(enabled: Boolean) =
         store.edit { it[Keys.SWIPE_DOWN_CC] = enabled }
 
+    suspend fun setWeatherEnabled(enabled: Boolean) = store.edit { it[Keys.WEATHER_ENABLED] = enabled }
+
+    suspend fun setWeatherPlace(place: Place?) = store.edit { p ->
+        if (place == null) p.remove(Keys.WEATHER_PLACE) else p[Keys.WEATHER_PLACE] = place.encode()
+    }
+
+    suspend fun setUseFahrenheit(value: Boolean?) = store.edit { p ->
+        if (value == null) p.remove(Keys.USE_FAHRENHEIT) else p[Keys.USE_FAHRENHEIT] = value.toString()
+    }
+
     suspend fun setWallpaperDim(percent: Int) = store.edit { it[Keys.WALLPAPER_DIM] = percent.coerceIn(0, 100) }
 
     // ---- Backup / restore -------------------------------------------------------------------
@@ -133,7 +150,7 @@ class SettingsRepository @Inject constructor(
     suspend fun exportJson(): String {
         val s = current()
         return JSONObject().apply {
-            put("format", "quadro-settings")
+            put("format", SETTINGS_FORMAT)
             put("version", 1)
             put("accent", s.accent.name)
             put("favorites", JSONArray(s.favorites))
@@ -146,13 +163,17 @@ class SettingsRepository @Inject constructor(
             put("swipeDownForCommandCenter", s.swipeDownForCommandCenter)
             put("quickNote", s.quickNote)
             put("wallpaperDim", s.wallpaperDim)
+            put("weatherEnabled", s.weatherEnabled)
+            s.weatherPlace?.let { put("weatherPlace", it.encode()) }
+            s.useFahrenheit?.let { put("useFahrenheit", it) }
         }.toString(2)
     }
 
     /** Restores settings from [exportJson] output. Unknown or missing fields are ignored. */
     suspend fun importJson(json: String) {
         val o = JSONObject(json)
-        require(o.optString("format") == "quadro-settings") { "Not a Quadro settings file" }
+        // Files exported before the rename to Drengr say "quadro-settings"; accept both.
+        require(o.optString("format") in setOf(SETTINGS_FORMAT, "quadro-settings")) { "Not a Drengr settings file" }
         store.edit { p ->
             o.optString("accent").takeIf { it.isNotEmpty() }?.let { p[Keys.ACCENT] = it }
             o.optJSONArray("favorites")?.let { p[Keys.FAVORITES] = it.strings().encodeList() }
@@ -166,6 +187,9 @@ class SettingsRepository @Inject constructor(
                 p[Keys.SWIPE_DOWN_CC] = o.getBoolean("swipeDownForCommandCenter")
             }
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
+            if (o.has("weatherEnabled")) p[Keys.WEATHER_ENABLED] = o.getBoolean("weatherEnabled")
+            o.optString("weatherPlace").takeIf { it.decodePlace() != null }?.let { p[Keys.WEATHER_PLACE] = it }
+            if (o.has("useFahrenheit")) p[Keys.USE_FAHRENHEIT] = o.getBoolean("useFahrenheit").toString()
             if (o.has("wallpaperDim")) p[Keys.WALLPAPER_DIM] = o.getInt("wallpaperDim").coerceIn(0, 100)
         }
     }
@@ -187,6 +211,9 @@ class SettingsRepository @Inject constructor(
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
         swipeDownForCommandCenter = this[Keys.SWIPE_DOWN_CC] ?: true,
         wallpaperDim = this[Keys.WALLPAPER_DIM] ?: UserSettings.DEFAULT_WALLPAPER_DIM,
+        weatherEnabled = this[Keys.WEATHER_ENABLED] ?: true,
+        weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),
+        useFahrenheit = this[Keys.USE_FAHRENHEIT]?.toBooleanStrictOrNull(),
     )
 
     /** Saved order, with unknown names dropped and any new pages appended. */
@@ -218,5 +245,15 @@ private fun String?.decodeCounts(): Map<String, Int> =
 
 private fun Map<String, Int>.encodeCounts(): String =
     entries.joinToString("\n") { "${it.key}\t${it.value}" }
+
+private fun Place.encode(): String = "$name\t$latitude\t$longitude"
+
+private fun String?.decodePlace(): Place? {
+    val parts = this?.split('\t') ?: return null
+    if (parts.size != 3) return null
+    val lat = parts[1].toDoubleOrNull() ?: return null
+    val lon = parts[2].toDoubleOrNull() ?: return null
+    return Place(parts[0], lat, lon)
+}
 
 private fun JSONArray.strings(): List<String> = (0 until length()).map { getString(it) }

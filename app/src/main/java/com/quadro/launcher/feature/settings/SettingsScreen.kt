@@ -8,7 +8,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -32,6 +36,8 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -54,10 +60,12 @@ import com.quadro.launcher.BuildConfig
 import com.quadro.launcher.core.designsystem.AccentColor
 import com.quadro.launcher.core.designsystem.Pill
 import com.quadro.launcher.core.designsystem.QuadroCard
+import com.quadro.launcher.core.designsystem.QuadroSearchField
 import com.quadro.launcher.core.designsystem.QuadroTheme
 import com.quadro.launcher.core.designsystem.SectionHeader
 import com.quadro.launcher.core.domain.AppLayout
 import com.quadro.launcher.core.domain.PageId
+import com.quadro.launcher.core.domain.Place
 import com.quadro.launcher.core.domain.UserSettings
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -108,6 +116,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
             Text("Settings", style = QuadroTheme.typography.headline)
         }
         LazyColumn(
+            // Edge-to-edge windows aren't resized for the keyboard; shrink the list ourselves.
+            modifier = Modifier.imePadding(),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -117,7 +127,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                         Column(Modifier.weight(1f)) {
                             Text("Default Home app", style = QuadroTheme.typography.title)
                             Text(
-                                if (isDefaultHome) "Quadro is your Home app" else "Tap to make Quadro your Home app",
+                                if (isDefaultHome) "Drengr is your Home app" else "Tap to make Drengr your Home app",
                                 style = QuadroTheme.typography.caption,
                                 color = colors.textSecondary,
                             )
@@ -197,6 +207,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                 )
             }
 
+            item { SectionHeader("Weather", Modifier.padding(top = 8.dp)) }
+            item { WeatherSettings(viewModel, settings) }
+
             item { SectionHeader("Pages", Modifier.padding(top = 8.dp)) }
             item {
                 QuadroCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 12.dp)) {
@@ -229,9 +242,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
             item {
                 QuadroCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 16.dp)) {
                     ClickRow("Export settings", "Save a JSON file with your layout and preferences") {
-                        exportLauncher.launch("quadro-settings-${LocalDate.now()}.json")
+                        exportLauncher.launch("drengr-settings-${LocalDate.now()}.json")
                     }
-                    ClickRow("Import settings", "Restore from a Quadro JSON file") {
+                    ClickRow("Import settings", "Restore from a Drengr JSON file") {
                         importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
                     }
                 }
@@ -240,7 +253,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
             item { SectionHeader("About", Modifier.padding(top = 8.dp)) }
             item {
                 QuadroCard(Modifier.fillMaxWidth()) {
-                    Text("QUADRO", style = QuadroTheme.typography.title, color = colors.accent)
+                    Text("DRENGR", style = QuadroTheme.typography.title, color = colors.accent)
                     Text("A smarter home for Android.", style = QuadroTheme.typography.body)
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -251,6 +264,125 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WeatherSettings(viewModel: SettingsViewModel, settings: UserSettings) {
+    val colors = QuadroTheme.colors
+    val query by viewModel.placeQuery.collectAsStateWithLifecycle()
+    val search by viewModel.placeResults.collectAsStateWithLifecycle()
+    // Results appear below the search field, usually under the keyboard: scroll them into view.
+    val resultsView = remember { BringIntoViewRequester() }
+    LaunchedEffect(search) {
+        if (search != PlaceSearch.Idle) resultsView.bringIntoView()
+    }
+    QuadroCard(Modifier.fillMaxWidth()) {
+        SwitchRow(
+            title = "Show weather on Home",
+            subtitle = "Forecast from Open-Meteo (free, no account). Only a rounded location is sent.",
+            checked = settings.weatherEnabled,
+            onChange = viewModel::setWeatherEnabled,
+        )
+        if (!settings.weatherEnabled) return@QuadroCard
+
+        Spacer(Modifier.height(12.dp))
+        SettingRow("Units") {
+            Segmented(
+                options = listOf("System", "°C", "°F"),
+                selected = when (settings.useFahrenheit) {
+                    null -> "System"
+                    true -> "°F"
+                    false -> "°C"
+                },
+                onSelect = {
+                    viewModel.setUseFahrenheit(
+                        when (it) {
+                            "°F" -> true
+                            "°C" -> false
+                            else -> null
+                        },
+                    )
+                },
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Text("Location", style = QuadroTheme.typography.body)
+        Spacer(Modifier.height(4.dp))
+        ChoiceRow(
+            title = "Current location (approximate)",
+            subtitle = "Asks for approximate location the first time",
+            selected = settings.weatherPlace == null,
+            onClick = { viewModel.setWeatherPlace(null) },
+        )
+        settings.weatherPlace?.let { place ->
+            ChoiceRow(title = place.name, subtitle = "Chosen city", selected = true, onClick = {})
+        }
+        Spacer(Modifier.height(8.dp))
+        QuadroSearchField(
+            value = query,
+            onValueChange = { viewModel.placeQuery.value = it },
+            placeholder = if (settings.weatherPlace == null) "Or search for a city…" else "Search for another city…",
+        )
+        Column(Modifier.bringIntoViewRequester(resultsView)) { PlaceResults(search, query, viewModel::setWeatherPlace) }
+    }
+}
+
+@Composable
+private fun PlaceResults(search: PlaceSearch, query: String, onPick: (Place) -> Unit) {
+    val colors = QuadroTheme.colors
+    when (val result = search) {
+        PlaceSearch.Idle -> Unit
+        PlaceSearch.Failed -> Text(
+            "Couldn't search. Check your connection.",
+            style = QuadroTheme.typography.caption,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        is PlaceSearch.Results -> {
+            if (result.places.isEmpty() && query.isNotBlank()) {
+                Text(
+                    "No matching places",
+                    style = QuadroTheme.typography.caption,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            if (query.isNotBlank()) {
+                result.places.forEach { place ->
+                    ClickRow(place.name, "%.2f, %.2f".format(place.latitude, place.longitude)) {
+                        onPick(place)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(QuadroTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = QuadroTheme.colors.accent,
+                unselectedColor = QuadroTheme.colors.textSecondary,
+            ),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(title, style = QuadroTheme.typography.body)
+            Text(subtitle, style = QuadroTheme.typography.caption, color = QuadroTheme.colors.textSecondary)
         }
     }
 }

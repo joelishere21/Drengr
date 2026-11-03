@@ -1,8 +1,9 @@
-# Quadro — Android Launcher
+# Drengr — Android Launcher
 
 > A smarter home for Android. Native Kotlin + Jetpack Compose, Omarchy-inspired, blue accent (`#579BFF`).
 
-The full product spec is in `Quadro_Android_Launcher_Project_Plan.pdf`.
+Originally planned under the name Quadro, so the code package and app ID are still `com.quadro.launcher`
+(changing the app ID would make Android treat it as a new app and drop existing settings).
 
 ## Status: Alpha 0.1 (Milestones 1, 2 and most of 4)
 
@@ -10,16 +11,25 @@ The full product spec is in `Quadro_Android_Launcher_Project_Plan.pdf`.
 |---|---|
 | Installable APK, selectable as the default Home app | ✅ HOME intent filter + RoleManager prompt in Settings |
 | Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media |
-| Working Home screen and persistent dock | ✅ Clock, date, next alarm, glance cards, favorites over your wallpaper; dock with 4 apps + Apps + Command Center |
+| Working Home screen and persistent dock | ✅ Clock, date, weather, next alarm, agenda, quick note, favorites over your wallpaper; dock with 4 apps + Apps + Command Center |
 | App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts |
 | Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
 | Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe down on Home), ~30 built-in actions |
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
 | Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
 
-Not done yet (later milestones): calendar/weather/media-session integrations, Android widget hosting, tablet layouts, configurable gesture zones.
+Not done yet (later milestones): media-session integration, Android widget hosting, tablet layouts, configurable gesture zones.
 
 **Wallpaper:** the system wallpaper shows behind every page. Settings → Appearance has "Change wallpaper" and a dimming slider (0–100 %, default 40 %; 100 % gives the original solid background). Scrolling wallpapers follow the pager.
+
+**Agenda (Home):** the next 3 events from every calendar on the phone (Google, Samsung, Exchange…), read
+locally via `CalendarContract`, updated live when calendars change. Calendar access is requested the first
+time the Agenda card is tapped. Tap an event to open it, or the header to open the calendar app.
+
+**Weather (Home):** current conditions, high/low and rain chance from [Open-Meteo](https://open-meteo.com)
+(free, no account or API key). Location is either approximate device location (asked for when you tap
+"Show weather") or a city searched in **Settings → Weather**, where units and on/off also live.
+Coordinates are rounded to ~1 km before being sent; results are cached for 30 minutes.
 
 ## Gestures
 
@@ -49,7 +59,7 @@ export ANDROID_HOME=~/Android/Sdk
 1. Turn on **Settings → About phone → Software information → tap Build number 7×** to enable Developer options.
 2. Turn on **Developer options → USB debugging** and connect over USB (or use Wireless debugging).
 3. `~/Android/Sdk/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk`
-4. Open Quadro, long-press Home → **Settings → Default Home app**, or use the Command Center action
+4. Open Drengr, long-press Home → **Settings → Default Home app**, or use the Command Center action
    "Choose default Home app". To switch back: **Settings → Apps → Choose default apps → Home app**.
 
 ## Code layout
@@ -76,8 +86,8 @@ app/src/main/java/com/quadro/launcher/
 **Principles (from the spec):** screens consume ViewModels and never write preferences directly. Android
 APIs sit behind repositories. Command Center actions are trusted, built-in `LauncherAction`s registered in
 `ActionRegistry`, each labeled **Direct** (the launcher does it itself) or **Settings/App** (hands off to
-Android). Only normal install-time permissions are declared. Sensitive access (calendar, notifications,
-location) should be requested only when the user turns on the feature that needs it.
+Android). Runtime permissions (calendar, approximate location) are requested only when the user taps the feature
+that needs them; if Android stops showing the prompt, the next tap opens App info instead.
 
 ## Adding a Command Center action
 

@@ -129,7 +129,7 @@ class ActionRegistry @Inject constructor(
                 ActionResult.Message(if (on) "Do Not Disturb off" else "Do Not Disturb on")
             } else {
                 ctx.launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
-                ActionResult.Message("Allow Quadro Do Not Disturb access to toggle it directly.")
+                ActionResult.Message("Allow Drengr Do Not Disturb access to toggle it directly.")
             }
         },
 
@@ -219,12 +219,12 @@ class ActionRegistry @Inject constructor(
         },
 
         // ---- Launcher -----------------------------------------------------------------------
-        LauncherAction("quadro_settings", "Quadro settings", "Appearance, pages, backup",
+        LauncherAction("quadro_settings", "Drengr settings", "Appearance, pages, backup",
             ActionCategory.Launcher, ActionKind.Navigation, Icons.Outlined.Tune,
-            listOf("launcher", "theme", "accent", "customize", "preferences")) {
+            listOf("launcher", "theme", "accent", "customize", "preferences", "quadro")) {
             it.launch(Intent(it, SettingsActivity::class.java))
         },
-        LauncherAction("default_home", "Choose default Home app", "Set Quadro as your launcher",
+        LauncherAction("default_home", "Choose default Home app", "Set Drengr as your launcher",
             ActionCategory.Launcher, ActionKind.OpensSettings, Icons.Outlined.Home,
             listOf("launcher", "default", "home screen")) {
             it.launch(Intent(Settings.ACTION_HOME_SETTINGS))
