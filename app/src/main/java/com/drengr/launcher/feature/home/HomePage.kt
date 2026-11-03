@@ -47,7 +47,11 @@ import com.drengr.launcher.core.designsystem.onWallpaper
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.feature.common.rememberPermissionRequest
-import com.drengr.launcher.integrations.system.expandNotificationShade
+import com.drengr.launcher.core.domain.GestureTargets
+import com.drengr.launcher.core.domain.HomeGesture
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.ui.unit.LayoutDirection
 import com.drengr.launcher.integrations.weather.GoogleWeather
 import com.drengr.launcher.launcher.LauncherNavigator
 import com.drengr.launcher.launcher.LauncherUiState
@@ -59,8 +63,8 @@ private val FAVORITE_ROW_HEIGHT = 92.dp
 private val PANE_GAP = 32.dp
 
 /**
- * Gestures: swipe down → notification shade (configurable), swipe up → Command Center,
- * long-press empty space → page editing (Settings).
+ * Gestures on empty space: swipe up, swipe down and double-tap do what Settings → Gestures says
+ * (by default Command Center and the notification shade); long-press opens Settings.
  */
 @Composable
 fun HomePage(
@@ -72,8 +76,15 @@ fun HomePage(
     val now by rememberCurrentTime()
     val agenda by viewModel.agenda.collectAsStateWithLifecycle()
     val weather by viewModel.weather.collectAsStateWithLifecycle()
-    val swipeDownEnabled by rememberUpdatedState(state.settings.swipeDownForNotifications)
-    val threshold = with(LocalDensity.current) { 96.dp.toPx() }
+    val settings by rememberUpdatedState(state.settings)
+    val density = LocalDensity.current
+    val threshold = with(density) { 96.dp.toPx() }
+    // Android's back-gesture strips, at least 24 dp even with button navigation.
+    val systemEdge = WindowInsets.systemGestures.let {
+        maxOf(it.getLeft(density, LayoutDirection.Ltr), it.getRight(density, LayoutDirection.Ltr))
+    }
+    val edgePx by rememberUpdatedState(maxOf(systemEdge.toFloat(), with(density) { 24.dp.toPx() }))
+    val doubleTapTarget = state.settings.gestureTarget(HomeGesture.DoubleTap)
 
     val use24h = state.settings.use24Hour ?: DateFormat.is24HourFormat(context)
     val timeFormat = remember(use24h) { DateTimeFormatter.ofPattern(if (use24h) "HH:mm" else "h:mm") }
@@ -179,25 +190,34 @@ fun HomePage(
             .fillMaxSize()
             .pointerInput(Unit) {
                 var total = 0f
+                var ignored = false
                 detectVerticalDragGestures(
-                    onDragStart = { total = 0f },
+                    onDragStart = { start ->
+                        total = 0f
+                        ignored = settings.gestureEdgeGuard &&
+                            HomeGestures.startsAtEdge(start.x, size.width.toFloat(), edgePx)
+                    },
                     onDragEnd = {
-                        when {
-                            total > threshold && swipeDownEnabled -> {
-                                if (!context.expandNotificationShade()) {
-                                    Toast.makeText(context, "This phone doesn't let apps open the notification shade", Toast.LENGTH_SHORT).show()
-                                }
+                        if (!ignored) {
+                            HomeGestures.swipe(total, threshold)?.let { gesture ->
+                                navigator.runGestureTarget(settings.gestureTarget(gesture))
                             }
-                            total < -threshold -> navigator.openCommandCenter()
                         }
                     },
                     onVerticalDrag = { change, amount ->
-                        change.consume()
+                        if (!ignored) change.consume()
                         total += amount
                     },
                 )
             }
-            .pointerInput(Unit) { detectTapGestures(onLongPress = { navigator.openSettings() }) }
+            .pointerInput(doubleTapTarget) {
+                detectTapGestures(
+                    onDoubleTap = if (doubleTapTarget == GestureTargets.NONE) null else {
+                        { navigator.runGestureTarget(doubleTapTarget) }
+                    },
+                    onLongPress = { navigator.openSettings() },
+                )
+            }
             .padding(horizontal = DrengrTheme.spacing.pageHorizontal),
     ) {
         if (layout.twoPaneHome) {

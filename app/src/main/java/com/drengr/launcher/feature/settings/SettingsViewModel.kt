@@ -20,6 +20,8 @@ import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.integrations.weather.WeatherRepository
 import com.drengr.launcher.core.domain.UserSettings
+import com.drengr.launcher.core.domain.HomeGesture
+import com.drengr.launcher.plugins.ActionRegistry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +58,7 @@ class SettingsViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val notifications: NotificationRepository,
     private val govee: GoveeRepository,
+    private val actions: ActionRegistry,
 ) : ViewModel() {
 
     val goveeConnected: StateFlow<Boolean> =
@@ -121,7 +124,11 @@ class SettingsViewModel @Inject constructor(
     fun setLayout(layout: AppLayout) = launch { repository.setAppLayout(layout) }
     fun setColumns(columns: Int) = launch { repository.setGridColumns(columns) }
     fun setUse24Hour(value: Boolean?) = launch { repository.setUse24Hour(value) }
-    fun setSwipeDown(enabled: Boolean) = launch { repository.setSwipeDownForNotifications(enabled) }
+    fun setGesture(gesture: HomeGesture, target: String) = launch { repository.setGesture(gesture, target) }
+    fun setGestureEdgeGuard(enabled: Boolean) = launch { repository.setGestureEdgeGuard(enabled) }
+
+    /** Everything a Home gesture can be bound to on this device. */
+    fun gestureChoices(): List<GestureChoice> = gestureChoices(actions.available(context))
     fun setWeatherEnabled(enabled: Boolean) = launch { repository.setWeatherEnabled(enabled) }
     fun setWeatherPlace(place: Place?) = launch {
         repository.setWeatherPlace(place)

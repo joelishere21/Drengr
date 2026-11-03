@@ -43,6 +43,7 @@ import com.drengr.launcher.feature.smarthome.SmartHomePage
 import com.drengr.launcher.launcher.components.Dock
 import com.drengr.launcher.launcher.components.PageIndicator
 import com.drengr.launcher.plugins.ActionResult
+import com.drengr.launcher.core.domain.GestureTargets
 import com.drengr.launcher.plugins.LauncherAction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -57,6 +58,13 @@ class LauncherNavigator(
 ) {
     /** Runs a registered action by id, e.g. "calendar". Unknown ids are ignored. */
     var runActionById: (String) -> Unit = {}
+        internal set
+
+    /**
+     * Does what a Home gesture is bound to (a GestureTargets value or an action id). Unlike
+     * [runAction], this doesn't add the action to Command Center's recents.
+     */
+    var runGestureTarget: (String) -> Unit = {}
         internal set
 }
 
@@ -90,6 +98,14 @@ fun LauncherScreen(
         if (index >= 0) scope.launch { pagerState.animateScrollToPage(index) }
     }
 
+    fun execute(action: LauncherAction) {
+        when (val result = action.run(context)) {
+            is ActionResult.Navigate -> goTo(result.page)
+            is ActionResult.Message -> viewModel.showMessage(result.text)
+            ActionResult.Done -> Unit
+        }
+    }
+
     val navigator = remember {
         LauncherNavigator(
             goTo = ::goTo,
@@ -97,13 +113,18 @@ fun LauncherScreen(
             openSettings = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
             runAction = { action ->
                 viewModel.recordAction(action)
-                when (val result = action.run(context)) {
-                    is ActionResult.Navigate -> goTo(result.page)
-                    is ActionResult.Message -> viewModel.showMessage(result.text)
-                    ActionResult.Done -> Unit
-                }
+                execute(action)
             },
-        ).also { nav -> nav.runActionById = { id -> viewModel.actions[id]?.let(nav.runAction) } }
+        ).also { nav ->
+            nav.runActionById = { id -> viewModel.actions[id]?.let(nav.runAction) }
+            nav.runGestureTarget = { target ->
+                when (target) {
+                    GestureTargets.NONE -> Unit
+                    GestureTargets.COMMAND_CENTER -> commandCenterOpen = true
+                    else -> viewModel.actions[target]?.takeIf { it.isAvailable(context) }?.let(::execute)
+                }
+            }
+        }
     }
 
     // Home button while already home: close overlays, then return to the Home page.

@@ -17,7 +17,7 @@ A drengr is an Old Norse word used in Viking-Age Scandinavia to describe a man o
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
 | Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
 
-Not done yet (later milestones): Android widget hosting, configurable gesture zones.
+Not done yet (later milestones): Android widget hosting.
 
 **Tablets and landscape:** layouts follow the window size (so split screen and DeX work too). Phones in
 portrait look as before. Landscape-shaped windows split Home into two columns: clock, weather, alarm and
@@ -34,6 +34,11 @@ their cards out two or three across, Command Center becomes a centered panel and
 locally via `CalendarContract`, updated live when calendars change. Calendar access is requested the first
 time the Agenda card is tapped. Tap an event to open it, or the header to open the calendar app.
 
+**Recent documents (Productivity):** tap **Add** to pin files with the system file picker; Drengr keeps
+access to exactly those files (up to 12) and nothing else. Tap one to open it in its app; long-press to
+remove it, which also gives up Drengr's access. Files that were moved or deleted drop off the list when
+tapped. The list stays on the phone and isn't part of settings exports.
+
 **Weather (Home):** current conditions, high/low and rain chance from [Open-Meteo](https://open-meteo.com)
 (free, no account or API key). Location is either approximate device location (asked for when you tap
 "Show weather") or a city searched in **Settings → Weather**, where units and on/off also live.
@@ -44,8 +49,10 @@ if it isn't installed).
 ## Gestures
 
 - **Swipe left/right:** change page (no wraparound)
-- **Home page, swipe down:** notification shade (can be turned off in Settings)
-- **Home page, swipe up:** Command Center
+- **Home page, swipe up / swipe down / double-tap:** set in **Settings → Gestures**. Each can be off, open
+  Command Center, or run any Command Center action (camera, flashlight, quick settings, a page…). Defaults:
+  swipe up opens Command Center, swipe down pulls down the notifications, double-tap does nothing.
+  "Leave screen edges to Android" (on by default) ignores swipes that start in Android's back-gesture strips.
 - **Home page, long-press on empty space:** Settings (page editing)
 - **Long-press an app:** shortcuts, favorite, dock (and move left/right when it's in the dock), rename, hide, app info, uninstall. Hidden apps leave the app list and suggestions but still turn up in Command Center search; unhide them in Settings → Hidden apps. A renamed app is still found by its original name.
 - **Home button / Back:** close the overlay, then return to the Home page

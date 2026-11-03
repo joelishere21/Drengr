@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,6 +25,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import com.drengr.launcher.integrations.documents.DocumentsRepository
+import com.drengr.launcher.integrations.documents.RecentDocument
+import kotlinx.coroutines.flow.receiveAsFlow
 import android.text.format.DateFormat
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -46,7 +51,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import com.drengr.launcher.core.designsystem.IconBadge
 import com.drengr.launcher.core.designsystem.PageHeader
 import com.drengr.launcher.core.designsystem.Pill
 import com.drengr.launcher.core.designsystem.DrengrCard
@@ -74,6 +78,7 @@ class ProductivityViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val registry: ActionRegistry,
     private val calendar: CalendarRepository,
+    private val documentsRepository: DocumentsRepository,
 ) : ViewModel() {
     private val calendarGranted = MutableStateFlow(calendar.hasPermission())
 
@@ -89,6 +94,36 @@ class ProductivityViewModel @Inject constructor(
     }
 
     fun calendarIntent(event: CalendarEvent) = calendar.viewIntent(event)
+
+    val documents: StateFlow<List<RecentDocument>> = documentsRepository.documents
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _messages = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
+
+    fun addDocuments(uris: List<Uri>) = viewModelScope.launch {
+        val added = documentsRepository.add(uris)
+        if (added < uris.size) _messages.send("Android didn't let Drengr keep access to some of those files.")
+    }
+
+    fun removeDocument(document: RecentDocument) = viewModelScope.launch { documentsRepository.remove(document) }
+
+    /** Opens [document] in its app, or explains (and drops it) if it was moved or deleted. */
+    fun openDocument(context: Context, document: RecentDocument) = viewModelScope.launch {
+        val ready = documentsRepository.prepareOpen(document)
+        if (ready == null) {
+            documentsRepository.remove(document)
+            _messages.send("“${document.name}” was moved or deleted, so it's been removed from the list.")
+            return@launch
+        }
+        try {
+            context.startActivity(documentsRepository.viewIntent(ready))
+        } catch (e: ActivityNotFoundException) {
+            _messages.send("No app on this phone can open “${ready.name}”.")
+        } catch (e: SecurityException) {
+            _messages.send("Drengr can't share “${ready.name}” with another app.")
+        }
+    }
 
     private val _note = MutableStateFlow("")
     val note: StateFlow<String> = _note.asStateFlow()
@@ -128,6 +163,10 @@ fun ProductivityPage(
     val actions = viewModel.quickActions(context)
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE · MMM d"))
     val agenda by viewModel.agenda.collectAsStateWithLifecycle()
+    val documents by viewModel.documents.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
     val now by rememberCurrentTime()
     val use24h = settings.use24Hour ?: DateFormat.is24HourFormat(context)
     val agendaItems = remember(agenda, now, use24h) {
@@ -206,20 +245,12 @@ fun ProductivityPage(
                 }
 
                 Spacer(Modifier.height(20.dp))
-                DrengrCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(Icons.Outlined.Description)
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text("Recent documents", style = DrengrTheme.typography.title)
-                            Text(
-                                "Coming later via the Storage Access Framework.",
-                                style = DrengrTheme.typography.caption,
-                                color = DrengrTheme.colors.textSecondary,
-                            )
-                        }
-                    }
-                }
+                RecentDocumentsCard(
+                    documents = documents,
+                    onAdd = viewModel::addDocuments,
+                    onOpen = { viewModel.openDocument(context, it) },
+                    onRemove = viewModel::removeDocument,
+                )
             },
         )
         Spacer(Modifier.height(16.dp))

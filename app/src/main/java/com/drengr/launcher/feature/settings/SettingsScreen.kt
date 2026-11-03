@@ -274,14 +274,13 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
 
             item { SectionHeader("Gestures", Modifier.padding(top = 8.dp)) }
             item {
-                DrengrCard(Modifier.fillMaxWidth()) {
-                    SwitchRow(
-                        title = "Swipe down for notifications",
-                        subtitle = "On the Home page. Swipe up always opens Command Center.",
-                        checked = settings.swipeDownForNotifications,
-                        onChange = viewModel::setSwipeDown,
-                    )
-                }
+                val choices = remember { viewModel.gestureChoices() }
+                GestureSettingsCard(
+                    settings = settings,
+                    choices = choices,
+                    onSetGesture = viewModel::setGesture,
+                    onSetEdgeGuard = viewModel::setGestureEdgeGuard,
+                )
             }
 
             item { SectionHeader("Notifications & media", Modifier.padding(top = 8.dp)) }
@@ -475,7 +474,7 @@ private fun PlaceResults(search: PlaceSearch, query: String, onPick: (Place) -> 
 }
 
 @Composable
-private fun ChoiceRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+internal fun ChoiceRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -602,7 +601,7 @@ private fun PageRow(
 }
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, style = DrengrTheme.typography.body)
@@ -661,7 +660,7 @@ private fun HiddenAppRow(app: AppInfo, loadIcon: suspend (AppInfo) -> ImageBitma
 }
 
 @Composable
-private fun ClickRow(title: String, subtitle: String, onClick: () -> Unit) {
+internal fun ClickRow(title: String, subtitle: String, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()

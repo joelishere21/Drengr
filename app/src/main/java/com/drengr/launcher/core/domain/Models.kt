@@ -79,8 +79,10 @@ data class UserSettings(
     val quickNote: String = "",
     /** null = follow the system 12/24-hour setting. */
     val use24Hour: Boolean? = null,
-    /** Swipe down on Home pulls down the notification shade. */
-    val swipeDownForNotifications: Boolean = true,
+    /** Gesture → target, only for gestures the user changed. See [gestureTarget]. */
+    val gestures: Map<HomeGesture, String> = emptyMap(),
+    /** Ignore Home swipes that start at the screen's side edges, which belong to Android's back gesture. */
+    val gestureEdgeGuard: Boolean = true,
     /** Dots on app icons for unread notifications. Needs notification access. */
     val notificationDots: Boolean = true,
     /** Govee device ids left off the Smart home page (and out of "All off"). */
@@ -95,6 +97,9 @@ data class UserSettings(
     /** null = follow the system's temperature unit. */
     val useFahrenheit: Boolean? = null,
 ) {
+    /** What [gesture] does: a [GestureTargets] value or an action id. */
+    fun gestureTarget(gesture: HomeGesture): String = gestures[gesture] ?: gesture.defaultTarget
+
     /** Ordered, visible pages. Home can never be hidden. */
     val visiblePages: List<PageId>
         get() = pageOrder.filter { it == PageId.Home || it !in hiddenPages }

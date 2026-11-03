@@ -12,6 +12,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.drengr.launcher.core.designsystem.AccentColor
 import com.drengr.launcher.core.domain.AppLayout
+import com.drengr.launcher.core.domain.GestureTargets
+import com.drengr.launcher.core.domain.HomeGesture
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.core.domain.UserSettings
@@ -53,7 +55,10 @@ class SettingsRepository @Inject constructor(
         val APP_LABELS = stringPreferencesKey("app_labels")
         val QUICK_NOTE = stringPreferencesKey("quick_note")
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
+        /** Legacy on/off for swipe down; read only when the swipe-down gesture was never set. */
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
+        fun gesture(g: HomeGesture) = stringPreferencesKey("gesture_" + g.name)
+        val GESTURE_EDGE_GUARD = booleanPreferencesKey("gesture_edge_guard")
         val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
         val HIDDEN_GOVEE = stringPreferencesKey("hidden_govee_devices")
         val GOVEE_ORDER = stringPreferencesKey("govee_device_order")
@@ -165,8 +170,13 @@ class SettingsRepository @Inject constructor(
         if (value == null) p.remove(Keys.USE_24_HOUR) else p[Keys.USE_24_HOUR] = value.toString()
     }
 
-    suspend fun setSwipeDownForNotifications(enabled: Boolean) =
-        store.edit { it[Keys.SWIPE_DOWN_SHADE] = enabled }
+    /** Binds [gesture] to [target] (a GestureTargets value or an action id). */
+    suspend fun setGesture(gesture: HomeGesture, target: String) = store.edit { p ->
+        p[Keys.gesture(gesture)] = target
+        if (gesture == HomeGesture.SwipeDown) p.remove(Keys.SWIPE_DOWN_SHADE)
+    }
+
+    suspend fun setGestureEdgeGuard(enabled: Boolean) = store.edit { it[Keys.GESTURE_EDGE_GUARD] = enabled }
 
     suspend fun setGoveeDeviceHidden(deviceId: String, hidden: Boolean) = store.edit { p ->
         val set = p[Keys.HIDDEN_GOVEE].decodeList().toMutableSet()
@@ -207,7 +217,8 @@ class SettingsRepository @Inject constructor(
             put("appLayout", s.appLayout.name)
             put("gridColumns", s.gridColumns)
             s.use24Hour?.let { put("use24Hour", it) }
-            put("swipeDownForNotifications", s.swipeDownForNotifications)
+            put("gestures", JSONObject(HomeGesture.entries.associate { it.name to s.gestureTarget(it) }))
+            put("gestureEdgeGuard", s.gestureEdgeGuard)
             put("notificationDots", s.notificationDots)
             put("hiddenGoveeDevices", JSONArray(s.hiddenGoveeDevices.toList()))
             put("goveeDeviceOrder", JSONArray(s.goveeDeviceOrder))
@@ -235,9 +246,19 @@ class SettingsRepository @Inject constructor(
             o.optString("appLayout").takeIf { it.isNotEmpty() }?.let { p[Keys.APP_LAYOUT] = it }
             if (o.has("gridColumns")) p[Keys.GRID_COLUMNS] = o.getInt("gridColumns").coerceIn(3, 6)
             if (o.has("use24Hour")) p[Keys.USE_24_HOUR] = o.getBoolean("use24Hour").toString()
-            if (o.has("swipeDownForNotifications")) {
-                p[Keys.SWIPE_DOWN_SHADE] = o.getBoolean("swipeDownForNotifications")
+            val gestures = o.optJSONObject("gestures")
+            if (gestures != null) {
+                HomeGesture.entries.forEach { g ->
+                    gestures.optString(g.name).takeIf { it.isNotEmpty() }?.let { p[Keys.gesture(g)] = it }
+                }
+                p.remove(Keys.SWIPE_DOWN_SHADE)
+            } else if (o.has("swipeDownForNotifications")) {
+                // Backups from before gestures were configurable.
+                p[Keys.gesture(HomeGesture.SwipeDown)] =
+                    if (o.getBoolean("swipeDownForNotifications")) GestureTargets.NOTIFICATIONS else GestureTargets.NONE
+                p.remove(Keys.SWIPE_DOWN_SHADE)
             }
+            if (o.has("gestureEdgeGuard")) p[Keys.GESTURE_EDGE_GUARD] = o.getBoolean("gestureEdgeGuard")
             o.optJSONArray("goveeDeviceOrder")?.let { p[Keys.GOVEE_ORDER] = it.strings().encodeList() }
             o.optJSONArray("hiddenGoveeDevices")?.let { p[Keys.HIDDEN_GOVEE] = it.strings().encodeList() }
             if (o.has("notificationDots")) p[Keys.NOTIFICATION_DOTS] = o.getBoolean("notificationDots")
@@ -273,7 +294,8 @@ class SettingsRepository @Inject constructor(
         appLabels = this[Keys.APP_LABELS].decodeLabels(),
         quickNote = this[Keys.QUICK_NOTE].orEmpty(),
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
-        swipeDownForNotifications = this[Keys.SWIPE_DOWN_SHADE] ?: true,
+        gestures = gestures(),
+        gestureEdgeGuard = this[Keys.GESTURE_EDGE_GUARD] ?: true,
         notificationDots = this[Keys.NOTIFICATION_DOTS] ?: true,
         hiddenGoveeDevices = this[Keys.HIDDEN_GOVEE].decodeList().toSet(),
         goveeDeviceOrder = this[Keys.GOVEE_ORDER].decodeList(),
@@ -282,6 +304,14 @@ class SettingsRepository @Inject constructor(
         weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),
         useFahrenheit = this[Keys.USE_FAHRENHEIT]?.toBooleanStrictOrNull(),
     )
+
+    private fun Preferences.gestures(): Map<HomeGesture, String> = buildMap {
+        HomeGesture.entries.forEach { g -> this@gestures[Keys.gesture(g)]?.let { put(g, it) } }
+        // Swipe down used to be a plain on/off switch.
+        if (HomeGesture.SwipeDown !in this && this@gestures[Keys.SWIPE_DOWN_SHADE] == false) {
+            put(HomeGesture.SwipeDown, GestureTargets.NONE)
+        }
+    }
 
     /** Saved order, with unknown names dropped and any new pages appended. */
     private fun Preferences.pageOrder(): List<PageId> {

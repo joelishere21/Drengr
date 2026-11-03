@@ -10,9 +10,14 @@ import android.content.Context
  * `StatusBarManager.expandNotificationsPanel()`, which needs the normal (install-time)
  * EXPAND_STATUS_BAR permission. Returns false if the device blocks it.
  */
+fun Context.expandNotificationShade(): Boolean = callStatusBar("expandNotificationsPanel")
+
+/** Opens the full Quick Settings panel, the same way. Returns false if the device blocks it. */
+fun Context.expandQuickSettings(): Boolean = callStatusBar("expandSettingsPanel")
+
 @SuppressLint("WrongConstant")
-fun Context.expandNotificationShade(): Boolean = runCatching {
+private fun Context.callStatusBar(method: String): Boolean = runCatching {
     val statusBar = getSystemService("statusbar") ?: return false
-    statusBar.javaClass.getMethod("expandNotificationsPanel").invoke(statusBar)
+    statusBar.javaClass.getMethod(method).invoke(statusBar)
     true
 }.getOrDefault(false)

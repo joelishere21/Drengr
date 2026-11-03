@@ -46,6 +46,10 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import com.drengr.launcher.integrations.govee.GoveeRepository
 import com.drengr.launcher.integrations.media.AudioController
+import com.drengr.launcher.integrations.system.expandNotificationShade
+import com.drengr.launcher.integrations.system.expandQuickSettings
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.ToggleOn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -136,6 +140,31 @@ class ActionRegistry @Inject constructor(
                 ctx.launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                 ActionResult.Message("Allow Drengr Do Not Disturb access to toggle it directly.")
             }
+        },
+
+        LauncherAction(
+            id = "notifications",
+            label = "Show notifications",
+            description = "Pull down the notification shade",
+            category = ActionCategory.System,
+            kind = ActionKind.Direct,
+            icon = Icons.Outlined.Notifications,
+            keywords = listOf("shade", "alerts", "notification panel"),
+        ) { ctx ->
+            if (ctx.expandNotificationShade()) ActionResult.Done
+            else ActionResult.Message("This phone doesn't let apps open the notification shade")
+        },
+        LauncherAction(
+            id = "quick_settings",
+            label = "Quick settings",
+            description = "Open the quick settings panel",
+            category = ActionCategory.System,
+            kind = ActionKind.Direct,
+            icon = Icons.Outlined.ToggleOn,
+            keywords = listOf("tiles", "toggles", "control panel"),
+        ) { ctx ->
+            if (ctx.expandQuickSettings()) ActionResult.Done
+            else ActionResult.Message("This phone doesn't let apps open quick settings")
         },
 
         // ---- System: settings shortcuts -----------------------------------------------------
