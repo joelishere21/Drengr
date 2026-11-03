@@ -41,6 +41,10 @@ import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.Wifi
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.feature.settings.SettingsActivity
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.PowerSettingsNew
+import com.drengr.launcher.integrations.govee.GoveeRepository
 import com.drengr.launcher.integrations.media.AudioController
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,6 +58,7 @@ import javax.inject.Singleton
 class ActionRegistry @Inject constructor(
     private val flashlight: FlashlightController,
     private val audio: AudioController,
+    private val govee: GoveeRepository,
 ) {
     private val actions = LinkedHashMap<String, LauncherAction>()
 
@@ -216,6 +221,21 @@ class ActionRegistry @Inject constructor(
         LauncherAction("media_page", "Media controls", "Open the Media page", ActionCategory.Media,
             ActionKind.Navigation, Icons.Outlined.MusicNote, listOf("music", "now playing")) {
             ActionResult.Navigate(PageId.Media)
+        },
+
+        // ---- Smart home (only once a Govee key is saved) -----------------------------------
+        LauncherAction("smart_home", "Smart home", "Govee lights and plugs", ActionCategory.SmartHome,
+            ActionKind.Navigation, Icons.Outlined.Lightbulb, listOf("govee", "lights", "lamp", "plug"),
+            isAvailable = { govee.configured }) {
+            ActionResult.Navigate(PageId.SmartHome)
+        },
+        LauncherAction("govee_all_off", "Govee: all off", "Turn off every Govee light and plug",
+            ActionCategory.SmartHome, ActionKind.Direct, Icons.Outlined.PowerSettingsNew,
+            listOf("lights off", "turn off", "govee", "goodnight", "lamp"),
+            isAvailable = { govee.configured }) { ctx ->
+            val app = ctx.applicationContext
+            govee.allOff { Toast.makeText(app, it, Toast.LENGTH_SHORT).show() }
+            ActionResult.Done
         },
 
         // ---- Launcher -----------------------------------------------------------------------

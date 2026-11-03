@@ -55,6 +55,8 @@ class SettingsRepository @Inject constructor(
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
         val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
+        /** A credential: kept out of [UserSettings] and never exported. */
+        val GOVEE_API_KEY = stringPreferencesKey("govee_api_key")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
         val WEATHER_ENABLED = booleanPreferencesKey("weather_enabled")
         val WEATHER_PLACE = stringPreferencesKey("weather_place")
@@ -66,6 +68,15 @@ class SettingsRepository @Inject constructor(
         .map { it.toSettings() }
 
     suspend fun current(): UserSettings = settings.first()
+
+    /** The user's Govee API key, or null. Deliberately not part of [settings] or backups. */
+    val goveeApiKey: Flow<String?> = store.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[Keys.GOVEE_API_KEY] }
+
+    suspend fun setGoveeApiKey(key: String?) = store.edit { p ->
+        if (key.isNullOrBlank()) p.remove(Keys.GOVEE_API_KEY) else p[Keys.GOVEE_API_KEY] = key
+    }
 
     suspend fun setAccent(accent: AccentColor) = store.edit { it[Keys.ACCENT] = accent.name }
 

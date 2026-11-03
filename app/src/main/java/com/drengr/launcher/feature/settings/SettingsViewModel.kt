@@ -14,6 +14,7 @@ import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
 import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.integrations.applications.AppRepository
+import com.drengr.launcher.integrations.govee.GoveeRepository
 import com.drengr.launcher.integrations.notifications.NotificationRepository
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
@@ -54,7 +55,16 @@ class SettingsViewModel @Inject constructor(
     private val weather: WeatherRepository,
     private val appRepository: AppRepository,
     private val notifications: NotificationRepository,
+    private val govee: GoveeRepository,
 ) : ViewModel() {
+
+    val goveeConnected: StateFlow<Boolean> =
+        govee.hasKey.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun disconnectGovee() = launch {
+        govee.removeKey()
+        _messages.tryEmit("Govee disconnected. The key was removed from this phone.")
+    }
 
     private val _notificationAccess = MutableStateFlow(notifications.hasAccess())
     val notificationAccess: StateFlow<Boolean> = _notificationAccess.asStateFlow()

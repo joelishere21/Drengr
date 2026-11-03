@@ -37,6 +37,7 @@ import com.drengr.launcher.feature.media.MediaPage
 import com.drengr.launcher.feature.productivity.ProductivityPage
 import com.drengr.launcher.feature.settings.SettingsActivity
 import com.drengr.launcher.feature.system.SystemPage
+import com.drengr.launcher.feature.smarthome.SmartHomePage
 import com.drengr.launcher.launcher.components.Dock
 import com.drengr.launcher.launcher.components.PageIndicator
 import com.drengr.launcher.plugins.ActionResult
@@ -172,6 +173,7 @@ fun LauncherScreen(
                         PageId.Productivity -> ProductivityPage(state.settings, navigator)
                         PageId.System -> SystemPage(navigator)
                         PageId.Media -> MediaPage(state, navigator)
+                        PageId.SmartHome -> SmartHomePage()
                     }
                 }
                 PageIndicator(

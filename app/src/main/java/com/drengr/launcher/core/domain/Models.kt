@@ -11,6 +11,7 @@ enum class PageId(val title: String) {
     Productivity("Productivity"),
     System("System"),
     Media("Media"),
+    SmartHome("Smart home"),
 }
 
 enum class AppLayout { Grid, List }

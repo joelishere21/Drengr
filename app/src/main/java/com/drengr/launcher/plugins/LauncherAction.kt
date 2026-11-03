@@ -11,6 +11,7 @@ enum class ActionCategory(val label: String) {
     System("System"),
     Productivity("Productivity"),
     Media("Media"),
+    SmartHome("Smart home"),
     Launcher("Drengr"),
 }
 

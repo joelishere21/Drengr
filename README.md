@@ -7,7 +7,7 @@
 | Alpha 0.1 criterion | State |
 |---|---|
 | Installable APK, selectable as the default Home app | ✅ HOME intent filter + RoleManager prompt in Settings |
-| Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media |
+| Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media, plus an optional Smart home page |
 | Working Home screen and persistent dock | ✅ Clock, date, weather, next alarm, agenda, quick note, favorites over your wallpaper; dock with 4 apps + Apps + Command Center (reorder from an app's long-press menu or Settings → Dock); Productivity page lists the next 7 days of events by day |
 | App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts, rename and hide apps |
 | Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
@@ -74,10 +74,11 @@ app/src/main/java/com/drengr/launcher/
 │   ├── battery/  connectivity/  system/
 │   ├── media/                       AudioController, MediaSessionRepository (now playing)
 │   ├── notifications/               DrengrNotificationListener, dot counts
+│   ├── govee/                       GoveeRepository (Govee cloud API: devices, state, control)
 ├── plugins/                         ActionRegistry, LauncherAction, FlashlightController
 ├── launcher/                        LauncherActivity, LauncherScreen (pager), ViewModel, Dock, PageIndicator, AppItem
 └── feature/
-    ├── home/  applications/  productivity/  system/  media/
+    ├── home/  applications/  productivity/  system/  media/  smarthome/
     ├── commandcenter/               overlay + ranking ViewModel
     └── settings/                    SettingsActivity
 ```
@@ -89,6 +90,9 @@ Android). Runtime permissions (calendar, approximate location) are requested onl
 that needs them; if Android stops showing the prompt, the next tap opens App info instead. Notification access
 (Settings → Notifications & media, or the Media page) is optional: it powers notification dots and the Media
 page's track, artwork, progress and seeking. Drengr keeps only per-app counts, never notification content.
+The Smart home page talks to Govee's cloud API only after you paste your personal API key (Govee Home app →
+Profile → Settings → Apply for API Key). The key stays on the phone and is left out of settings exports;
+Settings → Smart home removes it. Hide the page in Settings → Pages if you don't use Govee.
 
 ## Adding a Command Center action
 

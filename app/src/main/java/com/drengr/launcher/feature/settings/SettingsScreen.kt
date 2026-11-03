@@ -83,6 +83,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
     val isDefaultHome by viewModel.isDefaultHome.collectAsStateWithLifecycle()
     val hiddenApps by viewModel.hiddenApps.collectAsStateWithLifecycle()
     val dockApps by viewModel.dockApps.collectAsStateWithLifecycle()
+    val goveeConnected by viewModel.goveeConnected.collectAsStateWithLifecycle()
     val notificationAccess by viewModel.notificationAccess.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(Unit) {
@@ -293,6 +294,26 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                         onChange = viewModel::setNotificationDots,
                     )
                     Spacer(Modifier.height(10.dp))
+                }
+            }
+
+            item { SectionHeader("Smart home", Modifier.padding(top = 8.dp)) }
+            item {
+                DrengrCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 16.dp)) {
+                    if (goveeConnected) {
+                        ClickRow(
+                            title = "Disconnect Govee",
+                            subtitle = "Connected. Removes your API key from this phone.",
+                            onClick = viewModel::disconnectGovee,
+                        )
+                    } else {
+                        Text(
+                            "Govee isn't connected. Open the Smart home page to add your API key.",
+                            style = DrengrTheme.typography.caption,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(vertical = 10.dp),
+                        )
+                    }
                 }
             }
 
