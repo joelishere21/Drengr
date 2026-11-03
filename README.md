@@ -9,7 +9,7 @@
 | Installable APK, selectable as the default Home app | ✅ HOME intent filter + RoleManager prompt in Settings |
 | Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media |
 | Working Home screen and persistent dock | ✅ Clock, date, weather, next alarm, agenda, quick note, favorites over your wallpaper; dock with 4 apps + Apps + Command Center |
-| App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts |
+| App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts, rename and hide apps |
 | Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
 | Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe up on Home), ~30 built-in actions |
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
@@ -34,7 +34,7 @@ Coordinates are rounded to ~1 km before being sent; results are cached for 30 mi
 - **Home page, swipe down:** notification shade (can be turned off in Settings)
 - **Home page, swipe up:** Command Center
 - **Home page, long-press on empty space:** Settings (page editing)
-- **Long-press an app:** shortcuts, favorite, dock, app info, uninstall
+- **Long-press an app:** shortcuts, favorite, dock, rename, hide, app info, uninstall. Hidden apps leave the app list and suggestions but still turn up in Command Center search; unhide them in Settings → Hidden apps. A renamed app is still found by its original name.
 - **Home button / Back:** close the overlay, then return to the Home page
 
 ## Build

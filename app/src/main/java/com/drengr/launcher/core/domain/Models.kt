@@ -36,7 +36,11 @@ data class AppInfo(
     val user: UserHandle,
     val category: AppCategory,
     val isWorkProfile: Boolean,
-)
+    /** The app's own name; [label] differs when the user renamed it. */
+    val originalLabel: String = label,
+) {
+    val isRenamed: Boolean get() = label != originalLabel
+}
 
 @Immutable
 data class AppShortcut(
@@ -64,6 +68,10 @@ data class UserSettings(
     /** Entries are "app:<key>" or "action:<id>", most recent first. */
     val recents: List<String> = emptyList(),
     val launchCounts: Map<String, Int> = emptyMap(),
+    /** App keys left out of the app list and suggestions. They stay searchable in Command Center. */
+    val hiddenApps: Set<String> = emptySet(),
+    /** User-chosen names by app key. */
+    val appLabels: Map<String, String> = emptyMap(),
     val quickNote: String = "",
     /** null = follow the system 12/24-hour setting. */
     val use24Hour: Boolean? = null,

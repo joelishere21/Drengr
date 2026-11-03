@@ -17,6 +17,9 @@ interface AppInteractions {
     fun launch(app: AppInfo, sourceBounds: Rect? = null, options: Bundle? = null)
     fun toggleFavorite(app: AppInfo)
     fun toggleDock(app: AppInfo)
+    /** null restores the app's own name. */
+    fun rename(app: AppInfo, label: String?)
+    fun setHidden(app: AppInfo, hidden: Boolean)
     fun openAppInfo(app: AppInfo)
     fun uninstall(app: AppInfo)
     fun shortcuts(app: AppInfo): List<AppShortcut>
@@ -27,7 +30,11 @@ val LocalAppInteractions = staticCompositionLocalOf<AppInteractions> {
     error("AppInteractions not provided")
 }
 
-/** Favorite/dock membership, so app menus can show the right toggle labels. */
-data class AppMembership(val favorites: Set<String> = emptySet(), val dock: Set<String> = emptySet())
+/** Favorite/dock/hidden membership, so app menus can show the right toggle labels. */
+data class AppMembership(
+    val favorites: Set<String> = emptySet(),
+    val dock: Set<String> = emptySet(),
+    val hidden: Set<String> = emptySet(),
+)
 
 val LocalAppMembership = compositionLocalOf { AppMembership() }

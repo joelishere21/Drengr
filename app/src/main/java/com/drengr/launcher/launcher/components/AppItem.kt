@@ -19,10 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Dock
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Shortcut
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -33,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +74,7 @@ fun AppItem(
     val haptics = LocalHapticFeedback.current
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var renaming by rememberSaveable(app.key) { mutableStateOf(false) }
 
     val interaction = Modifier
         .onGloballyPositioned { coordinates = it }
@@ -139,7 +144,19 @@ fun AppItem(
                 AppIcon(app, iconSize)
             }
         }
-        AppActionsMenu(app = app, expanded = menuOpen, onDismiss = { menuOpen = false })
+        AppActionsMenu(
+            app = app,
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            onRename = { renaming = true },
+        )
+        if (renaming) {
+            RenameAppDialog(
+                app = app,
+                onRename = { interactions.rename(app, it) },
+                onDismiss = { renaming = false },
+            )
+        }
     }
 }
 
@@ -164,7 +181,7 @@ fun AppIcon(app: AppInfo, size: Dp, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AppActionsMenu(app: AppInfo, expanded: Boolean, onDismiss: () -> Unit) {
+private fun AppActionsMenu(app: AppInfo, expanded: Boolean, onDismiss: () -> Unit, onRename: () -> Unit) {
     val interactions = LocalAppInteractions.current
     val membership = LocalAppMembership.current
     val shortcuts = remember(expanded, app.key) {
@@ -172,7 +189,7 @@ private fun AppActionsMenu(app: AppInfo, expanded: Boolean, onDismiss: () -> Uni
     }
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         Text(
-            app.label,
+            if (app.isRenamed) "${app.label} (${app.originalLabel})" else app.label,
             style = DrengrTheme.typography.label,
             color = DrengrTheme.colors.textSecondary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -204,6 +221,23 @@ private fun AppActionsMenu(app: AppInfo, expanded: Boolean, onDismiss: () -> Uni
             onClick = {
                 onDismiss()
                 interactions.toggleDock(app)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text("Rename") },
+            leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+            onClick = {
+                onDismiss()
+                onRename()
+            },
+        )
+        val isHidden = app.key in membership.hidden
+        DropdownMenuItem(
+            text = { Text(if (isHidden) "Unhide" else "Hide") },
+            leadingIcon = { Icon(if (isHidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null) },
+            onClick = {
+                onDismiss()
+                interactions.setHidden(app, !isHidden)
             },
         )
         DropdownMenuItem(

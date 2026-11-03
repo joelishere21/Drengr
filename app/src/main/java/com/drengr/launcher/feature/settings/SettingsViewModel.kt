@@ -8,7 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.core.designsystem.AccentColor
+import androidx.compose.ui.graphics.ImageBitmap
+import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
+import com.drengr.launcher.core.domain.withCustomLabels
+import com.drengr.launcher.integrations.applications.AppRepository
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.integrations.weather.WeatherRepository
@@ -28,6 +32,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,10 +50,21 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: SettingsRepository,
     private val weather: WeatherRepository,
+    private val appRepository: AppRepository,
 ) : ViewModel() {
 
     val settings: StateFlow<UserSettings> =
         repository.settings.stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
+
+    val hiddenApps: StateFlow<List<AppInfo>> =
+        combine(appRepository.apps, repository.settings) { apps, s ->
+            apps.withCustomLabels(s.appLabels).filter { it.key in s.hiddenApps }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun unhideApp(app: AppInfo) = launch { repository.setAppHidden(app.key, false) }
+
+    suspend fun appIcon(app: AppInfo): ImageBitmap? =
+        appRepository.cachedIcon(app.key) ?: appRepository.loadIcon(app.key)
 
     private val _isDefaultHome = MutableStateFlow(false)
     val isDefaultHome: StateFlow<Boolean> = _isDefaultHome.asStateFlow()

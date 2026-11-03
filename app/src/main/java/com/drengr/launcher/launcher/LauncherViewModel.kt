@@ -12,6 +12,8 @@ import com.drengr.launcher.core.domain.AppLayout
 import com.drengr.launcher.core.domain.AppShortcut
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.UserSettings
+import com.drengr.launcher.core.domain.normalizeAppLabel
+import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.integrations.applications.AppRepository
 import com.drengr.launcher.plugins.ActionRegistry
 import com.drengr.launcher.plugins.LauncherAction
@@ -30,12 +32,14 @@ data class LauncherUiState(
     val settingsLoaded: Boolean = false,
     val appsLoaded: Boolean = false,
     val settings: UserSettings = UserSettings(),
+    /** Installed apps with the user's names applied, hidden apps left out. */
     val apps: List<AppInfo> = emptyList(),
     val favorites: List<AppInfo> = emptyList(),
     val dock: List<AppInfo> = emptyList(),
     val frequent: List<AppInfo> = emptyList(),
     val favoriteKeys: Set<String> = emptySet(),
     val dockKeys: Set<String> = emptySet(),
+    val hiddenKeys: Set<String> = emptySet(),
     val pages: List<PageId> = PageId.entries,
 )
 
@@ -55,22 +59,26 @@ class LauncherViewModel @Inject constructor(
         appRepository.apps,
         appRepository.loaded,
     ) { settings, apps, appsLoaded ->
-        val byKey = apps.associateBy { it.key }
+        val named = apps.withCustomLabels(settings.appLabels)
+        // Favorites and the dock were pinned on purpose, so they keep showing hidden apps.
+        val byKey = named.associateBy { it.key }
         val dockKeys = settings.dock ?: if (appsLoaded) appRepository.defaultDockKeys(apps) else emptyList()
         val frequent = settings.launchCounts.entries
             .sortedByDescending { it.value }
+            .filter { it.key !in settings.hiddenApps }
             .mapNotNull { byKey[it.key] }
             .take(FREQUENT_COUNT)
         LauncherUiState(
             settingsLoaded = true,
             appsLoaded = appsLoaded,
             settings = settings,
-            apps = apps,
+            apps = named.filter { it.key !in settings.hiddenApps },
             favorites = settings.favorites.mapNotNull(byKey::get),
             dock = dockKeys.mapNotNull(byKey::get).take(UserSettings.MAX_DOCK_APPS),
             frequent = frequent,
             favoriteKeys = settings.favorites.toSet(),
             dockKeys = dockKeys.toSet(),
+            hiddenKeys = settings.hiddenApps,
             pages = settings.visiblePages,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, LauncherUiState())
@@ -103,6 +111,21 @@ class LauncherViewModel @Inject constructor(
                 _messages.tryEmit("Dock is full — remove an app first")
             }
         }
+    }
+
+    override fun rename(app: AppInfo, label: String?) {
+        viewModelScope.launch {
+            // Saving the app's own name is the same as resetting it.
+            settingsRepository.setAppLabel(app.key, label?.takeIf { normalizeAppLabel(it) != app.originalLabel })
+        }
+    }
+
+    override fun setHidden(app: AppInfo, hidden: Boolean) {
+        viewModelScope.launch { settingsRepository.setAppHidden(app.key, hidden) }
+        _messages.tryEmit(
+            if (hidden) "${app.label} hidden · unhide in Settings"
+            else "${app.label} is back in your apps",
+        )
     }
 
     override fun openAppInfo(app: AppInfo) = appRepository.openAppInfo(app)

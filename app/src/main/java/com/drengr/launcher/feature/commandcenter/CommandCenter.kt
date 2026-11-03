@@ -50,6 +50,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.drengr.launcher.core.common.FuzzyMatcher
+import com.drengr.launcher.core.domain.searchKeywords
+import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.core.designsystem.IconBadge
 import com.drengr.launcher.core.designsystem.Pill
@@ -108,10 +110,12 @@ class CommandCenterViewModel @Inject constructor(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private fun build(q: String, apps: List<AppInfo>, settings: UserSettings): List<CommandSection> {
+    private fun build(q: String, installed: List<AppInfo>, settings: UserSettings): List<CommandSection> {
         val actions = registry.available(context)
+        val apps = installed.withCustomLabels(settings.appLabels)
         if (q.isEmpty()) {
-            val appsByKey = apps.associateBy { it.key }
+            // Hidden apps are never suggested, only found by searching.
+            val appsByKey = apps.filter { it.key !in settings.hiddenApps }.associateBy { it.key }
             val actionsById = actions.associateBy { it.id }
             val recents = settings.recents.mapNotNull { entry ->
                 when {
@@ -134,7 +138,7 @@ class CommandCenterViewModel @Inject constructor(
         }
 
         val appMatches = apps.mapNotNull { app ->
-            FuzzyMatcher.score(q, app.label)?.let { score ->
+            FuzzyMatcher.score(q, app.label, app.searchKeywords)?.let { score ->
                 // Small boost for apps the user launches often.
                 val boost = (settings.launchCounts[app.key] ?: 0).coerceAtMost(20)
                 (score + boost) to CommandItem.App(app)

@@ -7,6 +7,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
@@ -43,15 +44,18 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -63,6 +67,7 @@ import com.drengr.launcher.core.designsystem.DrengrCard
 import com.drengr.launcher.core.designsystem.DrengrSearchField
 import com.drengr.launcher.core.designsystem.DrengrTheme
 import com.drengr.launcher.core.designsystem.SectionHeader
+import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
@@ -75,6 +80,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
     val context = LocalContext.current
     val colors = DrengrTheme.colors
     val isDefaultHome by viewModel.isDefaultHome.collectAsStateWithLifecycle()
+    val hiddenApps by viewModel.hiddenApps.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(Unit) {
         viewModel.refreshDefaultHome()
@@ -235,6 +241,30 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                         checked = settings.swipeDownForNotifications,
                         onChange = viewModel::setSwipeDown,
                     )
+                }
+            }
+
+            item { SectionHeader("Hidden apps", Modifier.padding(top = 8.dp)) }
+            item {
+                DrengrCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 16.dp)) {
+                    if (hiddenApps.isEmpty()) {
+                        Text(
+                            "None. Long-press an app and choose Hide to keep it out of your app list.",
+                            style = DrengrTheme.typography.caption,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(vertical = 10.dp),
+                        )
+                    } else {
+                        Text(
+                            "Hidden apps still show up when you search in Command Center.",
+                            style = DrengrTheme.typography.caption,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                        hiddenApps.forEach { app ->
+                            HiddenAppRow(app, loadIcon = viewModel::appIcon, onUnhide = { viewModel.unhideApp(app) })
+                        }
+                    }
                 }
             }
 
@@ -498,6 +528,23 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
         }
         Spacer(Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = onChange, colors = drengrSwitchColors())
+    }
+}
+
+@Composable
+private fun HiddenAppRow(app: AppInfo, loadIcon: suspend (AppInfo) -> ImageBitmap?, onUnhide: () -> Unit) {
+    var icon by remember(app.key) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(app.key) { icon = loadIcon(app) }
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        val bitmap = icon
+        if (bitmap != null) {
+            Image(bitmap, contentDescription = null, modifier = Modifier.size(36.dp))
+        } else {
+            Spacer(Modifier.size(36.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(app.label, style = DrengrTheme.typography.body, modifier = Modifier.weight(1f))
+        TextButton(onClick = onUnhide) { Text("Unhide", color = DrengrTheme.colors.accent) }
     }
 }
 

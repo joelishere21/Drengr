@@ -138,7 +138,7 @@ fun LauncherScreen(
 
     CompositionLocalProvider(
         LocalAppInteractions provides viewModel,
-        LocalAppMembership provides AppMembership(state.favoriteKeys, state.dockKeys),
+        LocalAppMembership provides AppMembership(state.favoriteKeys, state.dockKeys, state.hiddenKeys),
     ) {
         Box(
             Modifier

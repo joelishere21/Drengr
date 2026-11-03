@@ -45,6 +45,7 @@ import com.drengr.launcher.core.designsystem.SectionHeader
 import com.drengr.launcher.core.domain.AppCategory
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
+import com.drengr.launcher.core.domain.searchKeywords
 import com.drengr.launcher.launcher.LauncherUiState
 import com.drengr.launcher.launcher.LocalAppInteractions
 import com.drengr.launcher.launcher.components.AppItem
@@ -81,7 +82,7 @@ fun ApplicationsPage(
         if (query.isBlank()) {
             pool
         } else {
-            pool.mapNotNull { app -> FuzzyMatcher.score(query, app.label)?.let { it to app } }
+            pool.mapNotNull { app -> FuzzyMatcher.score(query, app.label, app.searchKeywords)?.let { it to app } }
                 .sortedByDescending { it.first }
                 .map { it.second }
         }

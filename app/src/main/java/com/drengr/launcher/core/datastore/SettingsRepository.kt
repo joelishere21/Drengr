@@ -15,6 +15,7 @@ import com.drengr.launcher.core.domain.AppLayout
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.core.domain.UserSettings
+import com.drengr.launcher.core.domain.normalizeAppLabel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -48,6 +49,8 @@ class SettingsRepository @Inject constructor(
         val LAST_PAGE = stringPreferencesKey("last_page")
         val RECENTS = stringPreferencesKey("recents")
         val LAUNCH_COUNTS = stringPreferencesKey("launch_counts")
+        val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
+        val APP_LABELS = stringPreferencesKey("app_labels")
         val QUICK_NOTE = stringPreferencesKey("quick_note")
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
@@ -123,6 +126,20 @@ class SettingsRepository @Inject constructor(
         p[Keys.LAUNCH_COUNTS] = counts.encodeCounts()
     }
 
+    suspend fun setAppHidden(key: String, hidden: Boolean) = store.edit { p ->
+        val set = p[Keys.HIDDEN_APPS].decodeList().toMutableSet()
+        if (hidden) set.add(key) else set.remove(key)
+        p[Keys.HIDDEN_APPS] = set.toList().encodeList()
+    }
+
+    /** Sets the name shown for an app. null (or blank) restores the app's own name. */
+    suspend fun setAppLabel(key: String, label: String?) = store.edit { p ->
+        val labels = p[Keys.APP_LABELS].decodeLabels().toMutableMap()
+        val clean = label?.let(::normalizeAppLabel).orEmpty()
+        if (clean.isEmpty()) labels.remove(key) else labels[key] = clean
+        p[Keys.APP_LABELS] = labels.encodeLabels()
+    }
+
     suspend fun setQuickNote(text: String) = store.edit { it[Keys.QUICK_NOTE] = text }
 
     suspend fun setUse24Hour(value: Boolean?) = store.edit { p ->
@@ -161,6 +178,8 @@ class SettingsRepository @Inject constructor(
             s.use24Hour?.let { put("use24Hour", it) }
             put("swipeDownForNotifications", s.swipeDownForNotifications)
             put("quickNote", s.quickNote)
+            put("hiddenApps", JSONArray(s.hiddenApps.toList()))
+            put("appLabels", JSONObject(s.appLabels))
             put("wallpaperDim", s.wallpaperDim)
             put("weatherEnabled", s.weatherEnabled)
             s.weatherPlace?.let { put("weatherPlace", it.encode()) }
@@ -186,6 +205,13 @@ class SettingsRepository @Inject constructor(
                 p[Keys.SWIPE_DOWN_SHADE] = o.getBoolean("swipeDownForNotifications")
             }
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
+            o.optJSONArray("hiddenApps")?.let { p[Keys.HIDDEN_APPS] = it.strings().encodeList() }
+            o.optJSONObject("appLabels")?.let { labels ->
+                p[Keys.APP_LABELS] = labels.keys().asSequence()
+                    .associateWith { normalizeAppLabel(labels.getString(it)) }
+                    .filterValues { it.isNotEmpty() }
+                    .encodeLabels()
+            }
             if (o.has("weatherEnabled")) p[Keys.WEATHER_ENABLED] = o.getBoolean("weatherEnabled")
             o.optString("weatherPlace").takeIf { it.decodePlace() != null }?.let { p[Keys.WEATHER_PLACE] = it }
             if (o.has("useFahrenheit")) p[Keys.USE_FAHRENHEIT] = o.getBoolean("useFahrenheit").toString()
@@ -206,6 +232,8 @@ class SettingsRepository @Inject constructor(
         lastPage = PageId.entries.firstOrNull { it.name == this[Keys.LAST_PAGE] } ?: PageId.Home,
         recents = this[Keys.RECENTS].decodeList(),
         launchCounts = this[Keys.LAUNCH_COUNTS].decodeCounts(),
+        hiddenApps = this[Keys.HIDDEN_APPS].decodeList().toSet(),
+        appLabels = this[Keys.APP_LABELS].decodeLabels(),
         quickNote = this[Keys.QUICK_NOTE].orEmpty(),
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
         swipeDownForNotifications = this[Keys.SWIPE_DOWN_SHADE] ?: true,
@@ -243,6 +271,16 @@ private fun String?.decodeCounts(): Map<String, Int> =
     }.toMap()
 
 private fun Map<String, Int>.encodeCounts(): String =
+    entries.joinToString("\n") { "${it.key}\t${it.value}" }
+
+// One "key<TAB>label" per line. App keys never contain tabs; labels are normalized to one line.
+private fun String?.decodeLabels(): Map<String, String> =
+    decodeList().mapNotNull { line ->
+        val tab = line.indexOf('\t')
+        if (tab <= 0) null else line.substring(0, tab) to line.substring(tab + 1)
+    }.toMap()
+
+private fun Map<String, String>.encodeLabels(): String =
     entries.joinToString("\n") { "${it.key}\t${it.value}" }
 
 private fun Place.encode(): String = "$name\t$latitude\t$longitude"
