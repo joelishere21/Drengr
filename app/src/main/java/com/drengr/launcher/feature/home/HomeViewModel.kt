@@ -6,6 +6,7 @@ import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.integrations.calendar.CalendarEvent
 import com.drengr.launcher.integrations.calendar.CalendarRepository
+import com.drengr.launcher.integrations.system.AlarmRepository
 import com.drengr.launcher.integrations.weather.Weather
 import com.drengr.launcher.integrations.weather.WeatherException
 import com.drengr.launcher.integrations.weather.WeatherRepository
@@ -50,7 +51,12 @@ class HomeViewModel @Inject constructor(
     private val calendar: CalendarRepository,
     private val weatherRepository: WeatherRepository,
     settings: SettingsRepository,
+    alarms: AlarmRepository,
 ) : ViewModel() {
+
+    /** Trigger time of the next clock-app alarm; updates the moment alarms change. */
+    val nextAlarm: StateFlow<Long?> =
+        alarms.nextAlarm().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), alarms.current())
 
     private val calendarGranted = MutableStateFlow(calendar.hasPermission())
 

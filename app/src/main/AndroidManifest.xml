@@ -16,6 +16,13 @@
 
     <!-- Package visibility (Android 11+): see launchable apps and resolve common intents. -->
     <queries>
+        <!-- Clock apps, so Home only shows alarms they set (not reminders from other apps). -->
+        <intent>
+            <action android:name="android.intent.action.SHOW_ALARMS" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SET_ALARM" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

@@ -1,7 +1,6 @@
 package com.drengr.launcher.feature.home
 
 import android.Manifest
-import android.app.AlarmManager
 import android.content.Intent
 import android.provider.AlarmClock
 import android.text.format.DateFormat
@@ -47,8 +46,6 @@ import com.drengr.launcher.integrations.system.expandNotificationShade
 import com.drengr.launcher.launcher.LauncherNavigator
 import com.drengr.launcher.launcher.LauncherUiState
 import com.drengr.launcher.launcher.components.AppItem
-import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private const val FAVORITE_COLUMNS = 4
@@ -76,7 +73,8 @@ fun HomePage(
     val use24h = state.settings.use24Hour ?: DateFormat.is24HourFormat(context)
     val timeFormat = remember(use24h) { DateTimeFormatter.ofPattern(if (use24h) "HH:mm" else "h:mm") }
     val dateFormat = remember { DateTimeFormatter.ofPattern("EEEE, MMMM d") }
-    val nextAlarm = remember(now, use24h) { nextAlarmText(context, use24h) }
+    val alarmAt by viewModel.nextAlarm.collectAsStateWithLifecycle()
+    val nextAlarm = remember(alarmAt, now, use24h) { alarmAt?.let { AlarmLabel.format(it, now, use24h) } }
     val agendaItems = remember(agenda, now, use24h) {
         (agenda as? AgendaUi.Ready)?.let { Agenda.build(it.events, now, use24h, limit = AGENDA_LIMIT) }.orEmpty()
     }
@@ -213,11 +211,4 @@ private fun Favorites(favorites: List<AppInfo>, modifier: Modifier = Modifier) {
             }
         }
     }
-}
-
-private fun nextAlarmText(context: android.content.Context, use24h: Boolean): String? {
-    val alarm = context.getSystemService(AlarmManager::class.java).nextAlarmClock ?: return null
-    val time = Instant.ofEpochMilli(alarm.triggerTime).atZone(ZoneId.systemDefault())
-    val pattern = if (use24h) "EEE HH:mm" else "EEE h:mm a"
-    return "Alarm " + time.format(DateTimeFormatter.ofPattern(pattern))
 }
