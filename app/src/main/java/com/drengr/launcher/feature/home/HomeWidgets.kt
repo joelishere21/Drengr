@@ -55,7 +55,7 @@ fun WeatherLine(state: WeatherUi, onClick: () -> Unit, modifier: Modifier = Modi
     Row(
         modifier
             .clip(DrengrTheme.shapes.small)
-            .clickable(onClickLabel = "Weather", onClick = onClick)
+            .clickable(onClickLabel = if (state is WeatherUi.Ready) "Open weather" else "Weather", onClick = onClick)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -29,6 +29,8 @@ time the Agenda card is tapped. Tap an event to open it, or the header to open t
 (free, no account or API key). Location is either approximate device location (asked for when you tap
 "Show weather") or a city searched in **Settings → Weather**, where units and on/off also live.
 Coordinates are rounded to ~1 km before being sent; results are cached for 30 minutes.
+Tap the weather line to open Google's full forecast for the same place (in the Google app, or the browser
+if it isn't installed).
 
 ## Gestures
 

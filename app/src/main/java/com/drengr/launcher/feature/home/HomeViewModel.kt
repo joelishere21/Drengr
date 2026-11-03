@@ -7,6 +7,7 @@ import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.integrations.calendar.CalendarEvent
 import com.drengr.launcher.integrations.calendar.CalendarRepository
 import com.drengr.launcher.integrations.system.AlarmRepository
+import com.drengr.launcher.integrations.weather.GoogleWeather
 import com.drengr.launcher.integrations.weather.Weather
 import com.drengr.launcher.integrations.weather.WeatherException
 import com.drengr.launcher.integrations.weather.WeatherRepository
@@ -92,6 +93,10 @@ class HomeViewModel @Inject constructor(
     }
 
     fun calendarIntent(event: CalendarEvent) = calendar.viewIntent(event)
+
+    /** Google search for the weather Home is showing (the configured city, or the device location). */
+    fun weatherQuery(): String =
+        GoogleWeather.query(weatherConfig?.place, (_weather.value as? WeatherUi.Ready)?.weather?.place)
 
     /** Re-checks permissions (they can change in system settings) and refreshes stale data. */
     fun onResume() {

@@ -43,6 +43,7 @@ import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.feature.common.rememberPermissionRequest
 import com.drengr.launcher.integrations.system.expandNotificationShade
+import com.drengr.launcher.integrations.weather.GoogleWeather
 import com.drengr.launcher.launcher.LauncherNavigator
 import com.drengr.launcher.launcher.LauncherUiState
 import com.drengr.launcher.launcher.components.AppItem
@@ -151,6 +152,11 @@ fun HomePage(
             onClick = {
                 when (weather) {
                     WeatherUi.NeedsLocation -> requestLocation()
+                    is WeatherUi.Ready -> {
+                        if (!GoogleWeather.open(context, viewModel.weatherQuery())) {
+                            Toast.makeText(context, "Couldn't open Google weather", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     else -> viewModel.refreshWeather(force = true)
                 }
             },
