@@ -19,4 +19,10 @@ class ListsTest {
     @Test fun ignoresUnknownItems() {
         assertEquals(dock, dock.moving("mail", 1))
     }
+
+    @Test fun ordersByListThenOriginal() {
+        val devices = listOf("lamp", "strip", "plug", "new")
+        assertEquals(listOf("plug", "lamp", "strip", "new"), devices.inOrder(listOf("plug", "gone", "lamp")) { it })
+        assertEquals(devices, devices.inOrder(emptyList()) { it })
+    }
 }

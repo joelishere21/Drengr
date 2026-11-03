@@ -33,6 +33,9 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.VerticalAlignTop
+import androidx.compose.runtime.key
+import com.drengr.launcher.core.common.inOrder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -103,6 +106,7 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val savingKey by viewModel.savingKey.collectAsStateWithLifecycle()
     val hidden by viewModel.hidden.collectAsStateWithLifecycle()
+    val order by viewModel.order.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
@@ -113,8 +117,9 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
     }
 
     val state = ui
-    val shown = (state as? SmartHomeUi.Ready)?.devices.orEmpty().filter { it.device.id !in hidden }
-    val hiddenDevices = (state as? SmartHomeUi.Ready)?.devices.orEmpty().filter { it.device.id in hidden }
+    val ordered = (state as? SmartHomeUi.Ready)?.devices.orEmpty().inOrder(order) { it.device.id }
+    val shown = ordered.filter { it.device.id !in hidden }
+    val hiddenDevices = ordered.filter { it.device.id in hidden }
     val subtitle = when (state) {
         is SmartHomeUi.Ready -> "Govee · " + shown.size + (if (shown.size == 1) " device" else " devices") +
             if (hiddenDevices.isNotEmpty()) " · ${hiddenDevices.size} hidden" else ""
@@ -173,14 +178,23 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        shown.forEach { item ->
-                            DeviceCard(item, viewModel, onHide = { viewModel.setHidden(item.device, true) })
+                        shown.forEachIndexed { index, item ->
+                            key(item.device.id) {
+                                DeviceCard(
+                                    item = item,
+                                    viewModel = viewModel,
+                                    position = index,
+                                    lastPosition = shown.lastIndex,
+                                    onMove = { viewModel.move(item.device, it) },
+                                    onHide = { viewModel.setHidden(item.device, true) },
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(16.dp))
                     if (hiddenDevices.isEmpty()) {
                         Text(
-                            "Long-press a device to hide it from this page.",
+                            "Long-press a device to move or hide it.",
                             style = DrengrTheme.typography.caption,
                             color = DrengrTheme.colors.textSecondary,
                         )
@@ -217,7 +231,14 @@ private fun AllOffButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun DeviceCard(item: DeviceUi, viewModel: SmartHomeViewModel, onHide: () -> Unit) {
+private fun DeviceCard(
+    item: DeviceUi,
+    viewModel: SmartHomeViewModel,
+    position: Int,
+    lastPosition: Int,
+    onMove: (Int) -> Unit,
+    onHide: () -> Unit,
+) {
     val colors = DrengrTheme.colors
     val haptics = LocalHapticFeedback.current
     val device = item.device
@@ -302,6 +323,34 @@ private fun DeviceCard(item: DeviceUi, viewModel: SmartHomeViewModel, onHide: ()
                 color = colors.textSecondary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+            if (position > 0) {
+                DropdownMenuItem(
+                    text = { Text("Move to top") },
+                    leadingIcon = { Icon(Icons.Outlined.VerticalAlignTop, null) },
+                    onClick = {
+                        menuOpen = false
+                        onMove(-position)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Move up") },
+                    leadingIcon = { Icon(Icons.Outlined.KeyboardArrowUp, null) },
+                    onClick = {
+                        menuOpen = false
+                        onMove(-1)
+                    },
+                )
+            }
+            if (position < lastPosition) {
+                DropdownMenuItem(
+                    text = { Text("Move down") },
+                    leadingIcon = { Icon(Icons.Outlined.KeyboardArrowDown, null) },
+                    onClick = {
+                        menuOpen = false
+                        onMove(1)
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text("Hide from this page") },
                 leadingIcon = { Icon(Icons.Outlined.VisibilityOff, null) },

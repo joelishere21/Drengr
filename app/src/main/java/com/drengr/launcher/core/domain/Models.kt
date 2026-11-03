@@ -85,6 +85,8 @@ data class UserSettings(
     val notificationDots: Boolean = true,
     /** Govee device ids left off the Smart home page (and out of "All off"). */
     val hiddenGoveeDevices: Set<String> = emptySet(),
+    /** Govee device ids in the user's order. Devices not listed follow in Govee's order. */
+    val goveeDeviceOrder: List<String> = emptyList(),
     /** How strongly the launcher darkens the system wallpaper, 0–100 %. 100 hides it completely. */
     val wallpaperDim: Int = DEFAULT_WALLPAPER_DIM,
     val weatherEnabled: Boolean = true,

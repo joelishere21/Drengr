@@ -2,6 +2,8 @@
 
 > A smarter home for Android. Native Kotlin + Jetpack Compose, Omarchy-inspired, blue accent (`#579BFF`).
 
+A drengr is an Old Norse word used in Viking-Age Scandinavia to describe a man of high honor, courage, integrity, and fair play.
+
 ## Status: Alpha 0.1 (Milestones 1, 2 and most of 4)
 
 | Alpha 0.1 criterion | State |

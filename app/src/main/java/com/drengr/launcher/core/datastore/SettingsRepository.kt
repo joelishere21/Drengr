@@ -56,6 +56,7 @@ class SettingsRepository @Inject constructor(
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
         val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
         val HIDDEN_GOVEE = stringPreferencesKey("hidden_govee_devices")
+        val GOVEE_ORDER = stringPreferencesKey("govee_device_order")
         /** A credential: kept out of [UserSettings] and never exported. */
         val GOVEE_API_KEY = stringPreferencesKey("govee_api_key")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
@@ -173,6 +174,10 @@ class SettingsRepository @Inject constructor(
         p[Keys.HIDDEN_GOVEE] = set.toList().encodeList()
     }
 
+    suspend fun setGoveeDeviceOrder(deviceIds: List<String>) = store.edit {
+        it[Keys.GOVEE_ORDER] = deviceIds.distinct().encodeList()
+    }
+
     suspend fun setNotificationDots(enabled: Boolean) = store.edit { it[Keys.NOTIFICATION_DOTS] = enabled }
 
     suspend fun setWeatherEnabled(enabled: Boolean) = store.edit { it[Keys.WEATHER_ENABLED] = enabled }
@@ -205,6 +210,7 @@ class SettingsRepository @Inject constructor(
             put("swipeDownForNotifications", s.swipeDownForNotifications)
             put("notificationDots", s.notificationDots)
             put("hiddenGoveeDevices", JSONArray(s.hiddenGoveeDevices.toList()))
+            put("goveeDeviceOrder", JSONArray(s.goveeDeviceOrder))
             put("quickNote", s.quickNote)
             put("hiddenApps", JSONArray(s.hiddenApps.toList()))
             put("appLabels", JSONObject(s.appLabels))
@@ -232,6 +238,7 @@ class SettingsRepository @Inject constructor(
             if (o.has("swipeDownForNotifications")) {
                 p[Keys.SWIPE_DOWN_SHADE] = o.getBoolean("swipeDownForNotifications")
             }
+            o.optJSONArray("goveeDeviceOrder")?.let { p[Keys.GOVEE_ORDER] = it.strings().encodeList() }
             o.optJSONArray("hiddenGoveeDevices")?.let { p[Keys.HIDDEN_GOVEE] = it.strings().encodeList() }
             if (o.has("notificationDots")) p[Keys.NOTIFICATION_DOTS] = o.getBoolean("notificationDots")
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
@@ -269,6 +276,7 @@ class SettingsRepository @Inject constructor(
         swipeDownForNotifications = this[Keys.SWIPE_DOWN_SHADE] ?: true,
         notificationDots = this[Keys.NOTIFICATION_DOTS] ?: true,
         hiddenGoveeDevices = this[Keys.HIDDEN_GOVEE].decodeList().toSet(),
+        goveeDeviceOrder = this[Keys.GOVEE_ORDER].decodeList(),
         wallpaperDim = this[Keys.WALLPAPER_DIM] ?: UserSettings.DEFAULT_WALLPAPER_DIM,
         weatherEnabled = this[Keys.WEATHER_ENABLED] ?: true,
         weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),

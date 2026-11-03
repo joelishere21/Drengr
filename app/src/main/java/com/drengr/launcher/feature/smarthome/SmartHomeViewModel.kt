@@ -4,6 +4,8 @@ import android.os.SystemClock
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.drengr.launcher.core.common.inOrder
+import com.drengr.launcher.core.common.moving
 import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.integrations.govee.GoveeCommand
 import com.drengr.launcher.integrations.govee.GoveeDevice
@@ -50,6 +52,21 @@ class SmartHomeViewModel @Inject constructor(
     val hidden: StateFlow<Set<String>> = settings.settings
         .map { it.hiddenGoveeDevices }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /** Device ids in the user's order. */
+    val order: StateFlow<List<String>> = settings.settings
+        .map { it.goveeDeviceOrder }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Moves a shown device up (negative) or down (positive) among the shown devices. */
+    fun move(device: GoveeDevice, delta: Int) {
+        val all = (_ui.value as? SmartHomeUi.Ready)?.devices?.map { it.device.id }?.inOrder(order.value) { it } ?: return
+        val shown = all.filter { it !in hidden.value }
+        val moved = shown.moving(device.id, delta)
+        if (moved == shown) return
+        // Hidden devices keep their place after the shown ones.
+        viewModelScope.launch { settings.setGoveeDeviceOrder(moved + (all - moved.toSet())) }
+    }
 
     fun setHidden(device: GoveeDevice, hide: Boolean) = viewModelScope.launch {
         settings.setGoveeDeviceHidden(device.id, hide)
