@@ -88,13 +88,13 @@ class SettingsRepository @Inject constructor(
         p[Keys.FAVORITES] = list.encodeList()
     }
 
-    /** Adds or removes an app from the dock. Returns false if the dock is full. */
-    suspend fun toggleDock(key: String, currentDock: List<String>): Boolean {
+    /** Adds or removes an app from the dock. Returns false if [limit] apps are already in it. */
+    suspend fun toggleDock(key: String, currentDock: List<String>, limit: Int = UserSettings.MAX_DOCK_APPS): Boolean {
         var added = true
         store.edit { p ->
             val list = (p[Keys.DOCK]?.decodeList() ?: currentDock).toMutableList()
             if (!list.remove(key)) {
-                if (list.size >= UserSettings.MAX_DOCK_APPS) {
+                if (list.size >= limit.coerceAtMost(UserSettings.MAX_DOCK_APPS)) {
                     added = false
                     return@edit
                 }

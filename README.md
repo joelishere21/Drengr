@@ -17,7 +17,15 @@ A drengr is an Old Norse word used in Viking-Age Scandinavia to describe a man o
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
 | Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
 
-Not done yet (later milestones): Android widget hosting, tablet layouts, configurable gesture zones.
+Not done yet (later milestones): Android widget hosting, configurable gesture zones, tablet layouts for the
+remaining pages and Command Center.
+
+**Tablets and landscape:** layouts follow the window size (so split screen and DeX work too). Phones in
+portrait look as before. Landscape-shaped windows split Home into two columns: clock, weather, alarm and
+favorites on the left, agenda and quick note on the right (on a phone in landscape the right column scrolls
+and holds the favorites). A tablet in portrait keeps one wide column. The app grid adds columns as the screen
+gets wider, keeping icons about phone-sized; list view shows rows side by side. On tablets the dock is a
+centered bar with room for 6 apps (phones show the first 4).
 
 **Wallpaper:** the system wallpaper shows behind every page. Settings → Appearance has "Change wallpaper" and a dimming slider (0–100 %, default 40 %; 100 % gives the original solid background). Scrolling wallpapers follow the pager.
 

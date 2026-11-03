@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -21,9 +23,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.drengr.launcher.core.designsystem.DrengrTheme
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
 import com.drengr.launcher.core.domain.AppInfo
 
-/** Persistent dock shown on every primary page: up to four apps, Applications, Command Center. */
+/**
+ * Persistent dock shown on every primary page: the dock apps (4 on phones, 6 on tablets),
+ * Applications and Command Center. Centered at a fixed maximum width on wide screens.
+ */
 @Composable
 fun Dock(
     apps: List<AppInfo>,
@@ -33,8 +39,12 @@ fun Dock(
 ) {
     val colors = DrengrTheme.colors
     val shape = DrengrTheme.shapes.large
+    val layout = LocalLauncherLayout.current
     Row(
         modifier = modifier
+            .fillMaxWidth()
+            .wrapContentWidth()
+            .widthIn(max = layout.dockMaxWidth)
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(shape)

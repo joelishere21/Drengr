@@ -6,6 +6,11 @@ import android.provider.AlarmClock
 import android.text.format.DateFormat
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,10 +54,9 @@ import com.drengr.launcher.launcher.LauncherUiState
 import com.drengr.launcher.launcher.components.AppItem
 import java.time.format.DateTimeFormatter
 
-private const val FAVORITE_COLUMNS = 4
 private const val FAVORITE_MAX_ROWS = 3
-private const val AGENDA_LIMIT = 3
 private val FAVORITE_ROW_HEIGHT = 92.dp
+private val PANE_GAP = 32.dp
 
 /**
  * Gestures: swipe down → notification shade (configurable), swipe up → Command Center,
@@ -76,8 +80,10 @@ fun HomePage(
     val dateFormat = remember { DateTimeFormatter.ofPattern("EEEE, MMMM d") }
     val alarmAt by viewModel.nextAlarm.collectAsStateWithLifecycle()
     val nextAlarm = remember(alarmAt, now, use24h) { alarmAt?.let { AlarmLabel.format(it, now, use24h) } }
-    val agendaItems = remember(agenda, now, use24h) {
-        (agenda as? AgendaUi.Ready)?.let { Agenda.build(it.events, now, use24h, limit = AGENDA_LIMIT) }.orEmpty()
+    val layout = LocalLauncherLayout.current
+    val agendaLimit = layout.homeAgendaLimit
+    val agendaItems = remember(agenda, now, use24h, agendaLimit) {
+        (agenda as? AgendaUi.Ready)?.let { Agenda.build(it.events, now, use24h, limit = agendaLimit) }.orEmpty()
     }
 
     LifecycleResumeEffect(Unit) {
@@ -104,34 +110,14 @@ fun HomePage(
         },
     )
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                var total = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { total = 0f },
-                    onDragEnd = {
-                        when {
-                            total > threshold && swipeDownEnabled -> {
-                                if (!context.expandNotificationShade()) {
-                                    Toast.makeText(context, "This phone doesn't let apps open the notification shade", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            total < -threshold -> navigator.openCommandCenter()
-                        }
-                    },
-                    onVerticalDrag = { change, amount ->
-                        change.consume()
-                        total += amount
-                    },
-                )
-            }
-            .pointerInput(Unit) { detectTapGestures(onLongPress = { navigator.openSettings() }) }
-            .padding(horizontal = DrengrTheme.spacing.pageHorizontal),
-    ) {
-        Spacer(Modifier.height(36.dp))
-
+    val clockStyle = DrengrTheme.typography.clock.let { style ->
+        when {
+            layout.isShort -> style.copy(fontSize = 56.sp)
+            layout.isLargeScreen -> style.copy(fontSize = 96.sp)
+            else -> style
+        }
+    }
+    val clockAndStatus: @Composable () -> Unit = {
         // Clock: tap opens the alarm app.
         Column(
             Modifier.clickable(onClickLabel = "Open alarms") {
@@ -140,7 +126,7 @@ fun HomePage(
                 }
             },
         ) {
-            Text(now.format(timeFormat), style = DrengrTheme.typography.clock.onWallpaper())
+            Text(now.format(timeFormat), style = clockStyle.onWallpaper())
             Text(
                 now.format(dateFormat),
                 style = DrengrTheme.typography.title.onWallpaper(),
@@ -169,8 +155,8 @@ fun HomePage(
                 Text(nextAlarm, style = DrengrTheme.typography.mono.onWallpaper(), color = DrengrTheme.colors.accent)
             }
         }
-
-        Spacer(Modifier.height(20.dp))
+    }
+    val cards: @Composable () -> Unit = {
         AgendaCard(
             state = agenda,
             items = agendaItems,
@@ -186,16 +172,78 @@ fun HomePage(
             note = state.settings.quickNote,
             onClick = { navigator.goTo(PageId.Productivity) },
         )
+    }
 
-        Spacer(Modifier.height(20.dp))
-        Favorites(state.favorites, Modifier.weight(1f))
+    Column(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                var total = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = {
+                        when {
+                            total > threshold && swipeDownEnabled -> {
+                                if (!context.expandNotificationShade()) {
+                                    Toast.makeText(context, "This phone doesn't let apps open the notification shade", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            total < -threshold -> navigator.openCommandCenter()
+                        }
+                    },
+                    onVerticalDrag = { change, amount ->
+                        change.consume()
+                        total += amount
+                    },
+                )
+            }
+            .pointerInput(Unit) { detectTapGestures(onLongPress = { navigator.openSettings() }) }
+            .padding(horizontal = DrengrTheme.spacing.pageHorizontal),
+    ) {
+        if (layout.twoPaneHome) {
+            // Wider than a phone: clock and favorites on the left, agenda and note on the right.
+            // Short windows (phone landscape) scroll the right pane and move favorites into it.
+            Spacer(Modifier.height(if (layout.isShort) 8.dp else 36.dp))
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(PANE_GAP)) {
+                Column(Modifier.weight(1f)) {
+                    clockAndStatus()
+                    if (!layout.isShort) {
+                        Spacer(Modifier.height(24.dp))
+                        Favorites(state.favorites, Modifier.weight(1f))
+                    }
+                }
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .then(if (layout.isShort) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                ) {
+                    cards()
+                    if (layout.isShort) {
+                        Spacer(Modifier.height(16.dp))
+                        Favorites(state.favorites, rowLimit = FAVORITE_MAX_ROWS)
+                    }
+                }
+            }
+        } else {
+            Spacer(Modifier.height(36.dp))
+            clockAndStatus()
+            Spacer(Modifier.height(20.dp))
+            cards()
+            Spacer(Modifier.height(20.dp))
+            Favorites(state.favorites, Modifier.weight(1f))
+        }
     }
 }
 
-/** Shows as many favorite rows as fit; the rest stay reachable on the Applications page. */
+/**
+ * Shows as many favorite rows as fit (or [rowLimit] rows inside a scrolling pane); the rest stay
+ * reachable on the Applications page. Wider panes get more columns.
+ */
 @Composable
-private fun Favorites(favorites: List<AppInfo>, modifier: Modifier = Modifier) {
+private fun Favorites(favorites: List<AppInfo>, modifier: Modifier = Modifier, rowLimit: Int? = null) {
+    val layout = LocalLauncherLayout.current
     BoxWithConstraints(modifier.fillMaxWidth()) {
+        val columns = layout.favoriteColumns(maxWidth.value.toInt())
         val available = maxHeight
         Column {
             SectionHeader("Favorites")
@@ -207,11 +255,12 @@ private fun Favorites(favorites: List<AppInfo>, modifier: Modifier = Modifier) {
                     color = DrengrTheme.colors.textSecondary,
                 )
             } else {
-                val rows = ((available - 32.dp) / FAVORITE_ROW_HEIGHT).toInt().coerceIn(1, FAVORITE_MAX_ROWS)
-                favorites.take(rows * FAVORITE_COLUMNS).chunked(FAVORITE_COLUMNS).forEach { row ->
+                val rows = rowLimit
+                    ?: ((available - 32.dp) / FAVORITE_ROW_HEIGHT).toInt().coerceIn(1, FAVORITE_MAX_ROWS)
+                favorites.take(rows * columns).chunked(columns).forEach { row ->
                     Row(Modifier.fillMaxWidth()) {
                         row.forEach { app -> AppItem(app, Modifier.weight(1f)) }
-                        repeat(FAVORITE_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                        repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +42,7 @@ import com.drengr.launcher.core.common.FuzzyMatcher
 import com.drengr.launcher.core.designsystem.PageHeader
 import com.drengr.launcher.core.designsystem.DrengrSearchField
 import com.drengr.launcher.core.designsystem.DrengrTheme
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
 import com.drengr.launcher.core.designsystem.SectionHeader
 import com.drengr.launcher.core.domain.AppCategory
 import com.drengr.launcher.core.domain.AppInfo
@@ -63,7 +65,7 @@ fun ApplicationsPage(
     var categoryName by rememberSaveable { mutableStateOf<String?>(null) }
     val category = AppCategory.entries.firstOrNull { it.name == categoryName }
     val layout = state.settings.appLayout
-    val columns = if (layout == AppLayout.Grid) state.settings.gridColumns else 1
+    val windowLayout = LocalLauncherLayout.current
     val gridState = rememberLazyGridState()
 
     // Leaving the page clears the search so it's fresh next time.
@@ -132,42 +134,50 @@ fun ApplicationsPage(
         )
         Spacer(Modifier.height(6.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            state = gridState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp),
-        ) {
-            val fullSpan: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val width = maxWidth.value.toInt()
+            val columns = if (layout == AppLayout.Grid) {
+                windowLayout.appGridColumns(state.settings.gridColumns, width)
+            } else {
+                windowLayout.appListColumns(width)
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                state = gridState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
+                val fullSpan: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
 
-            if (!state.appsLoaded) {
-                item(span = fullSpan) { EmptyText("Loading apps…") }
-            }
-            if (browsing && state.favorites.isNotEmpty()) {
-                item(span = fullSpan, key = "h_fav") { SectionHeader("Favorites", Modifier.padding(top = 10.dp)) }
-                items(state.favorites, key = { "fav_" + it.key }) { AppItem(it, style = itemStyle) }
-            }
-            if (browsing && state.frequent.isNotEmpty()) {
-                item(span = fullSpan, key = "h_freq") { SectionHeader("Frequently used", Modifier.padding(top = 10.dp)) }
-                items(state.frequent.take(columns.coerceAtLeast(4)), key = { "freq_" + it.key }) {
-                    AppItem(it, style = itemStyle)
+                if (!state.appsLoaded) {
+                    item(span = fullSpan) { EmptyText("Loading apps…") }
                 }
-            }
-            if (state.appsLoaded) {
-                item(span = fullSpan, key = "h_all") {
-                    SectionHeader(
-                        when {
-                            query.isNotBlank() -> "${results.size} results"
-                            category != null -> category.label
-                            else -> "All apps"
-                        },
-                        Modifier.padding(top = 10.dp),
-                    )
+                if (browsing && state.favorites.isNotEmpty()) {
+                    item(span = fullSpan, key = "h_fav") { SectionHeader("Favorites", Modifier.padding(top = 10.dp)) }
+                    items(state.favorites, key = { "fav_" + it.key }) { AppItem(it, style = itemStyle) }
                 }
-            }
-            items(results, key = { it.key }) { AppItem(it, style = itemStyle) }
-            if (state.appsLoaded && results.isEmpty()) {
-                item(span = fullSpan) { EmptyText("No apps match “$query”.") }
+                if (browsing && state.frequent.isNotEmpty()) {
+                    item(span = fullSpan, key = "h_freq") { SectionHeader("Frequently used", Modifier.padding(top = 10.dp)) }
+                    items(state.frequent.take(columns.coerceAtLeast(4)), key = { "freq_" + it.key }) {
+                        AppItem(it, style = itemStyle)
+                    }
+                }
+                if (state.appsLoaded) {
+                    item(span = fullSpan, key = "h_all") {
+                        SectionHeader(
+                            when {
+                                query.isNotBlank() -> "${results.size} results"
+                                category != null -> category.label
+                                else -> "All apps"
+                            },
+                            Modifier.padding(top = 10.dp),
+                        )
+                    }
+                }
+                items(results, key = { it.key }) { AppItem(it, style = itemStyle) }
+                if (state.appsLoaded && results.isEmpty()) {
+                    item(span = fullSpan) { EmptyText("No apps match “$query”.") }
+                }
             }
         }
     }

@@ -26,8 +26,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import com.drengr.launcher.core.designsystem.DrengrTheme
+import com.drengr.launcher.core.designsystem.LauncherLayout
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.feature.applications.ApplicationsPage
@@ -139,7 +142,16 @@ fun LauncherScreen(
     // Back never leaves the launcher; it returns to Home.
     BackHandler(enabled = !commandCenterOpen) { goTo(PageId.Home) }
 
+    // The configuration's size is this window's (not the whole screen's), so split screen and
+    // DeX get a layout that fits the space they have.
+    val configuration = LocalConfiguration.current
+    val layout = remember(configuration.screenWidthDp, configuration.screenHeightDp) {
+        LauncherLayout(widthDp = configuration.screenWidthDp, heightDp = configuration.screenHeightDp)
+    }
+    LaunchedEffect(layout.dockSlots) { viewModel.setDockSlots(layout.dockSlots) }
+
     CompositionLocalProvider(
+        LocalLauncherLayout provides layout,
         LocalAppInteractions provides viewModel,
         LocalAppMembership provides AppMembership(
             favorites = state.favoriteKeys,

@@ -228,7 +228,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                         if (dockApps.isEmpty()) {
                             "No apps in the dock. Long-press any app and choose Add to dock."
                         } else {
-                            "Top to bottom is left to right. Add apps by long-pressing them (up to ${UserSettings.MAX_DOCK_APPS})."
+                            "Top to bottom is left to right. Add apps by long-pressing them: phones show ${UserSettings.PHONE_DOCK_APPS}, tablets ${UserSettings.MAX_DOCK_APPS}."
                         },
                         style = DrengrTheme.typography.caption,
                         color = colors.textSecondary,

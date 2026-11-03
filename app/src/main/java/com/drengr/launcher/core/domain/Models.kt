@@ -100,7 +100,10 @@ data class UserSettings(
         get() = pageOrder.filter { it == PageId.Home || it !in hiddenPages }
 
     companion object {
-        const val MAX_DOCK_APPS = 4
+        /** Most apps the dock holds (tablets show them all). */
+        const val MAX_DOCK_APPS = 6
+        /** Apps a phone-sized dock shows. */
+        const val PHONE_DOCK_APPS = 4
         const val MAX_RECENTS = 10
         const val DEFAULT_WALLPAPER_DIM = 40
     }

@@ -21,6 +21,7 @@ import com.drengr.launcher.plugins.ActionRegistry
 import com.drengr.launcher.plugins.LauncherAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,15 +66,24 @@ class LauncherViewModel @Inject constructor(
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages: SharedFlow<String> = _messages
 
+    /** How many dock apps the current window shows (more on tablets). */
+    private val dockSlots = MutableStateFlow(UserSettings.PHONE_DOCK_APPS)
+
+    /** All dock keys as stored, including any beyond what this window shows. */
+    private var storedDock: List<String> = emptyList()
+
     val uiState: StateFlow<LauncherUiState> = combine(
         settingsRepository.settings,
         appRepository.apps,
         appRepository.loaded,
-    ) { settings, apps, appsLoaded ->
+        dockSlots,
+    ) { settings, apps, appsLoaded, slots ->
         val named = apps.withCustomLabels(settings.appLabels)
         // Favorites and the dock were pinned on purpose, so they keep showing hidden apps.
         val byKey = named.associateBy { it.key }
-        val dockKeys = settings.dock ?: if (appsLoaded) appRepository.defaultDockKeys(apps) else emptyList()
+        val allDockKeys = settings.dock ?: if (appsLoaded) appRepository.defaultDockKeys(apps) else emptyList()
+        storedDock = allDockKeys
+        val dock = allDockKeys.mapNotNull(byKey::get).take(slots)
         val frequent = settings.launchCounts.entries
             .sortedByDescending { it.value }
             .filter { it.key !in settings.hiddenApps }
@@ -85,10 +95,10 @@ class LauncherViewModel @Inject constructor(
             settings = settings,
             apps = named.filter { it.key !in settings.hiddenApps },
             favorites = settings.favorites.mapNotNull(byKey::get),
-            dock = dockKeys.mapNotNull(byKey::get).take(UserSettings.MAX_DOCK_APPS),
+            dock = dock,
             frequent = frequent,
             favoriteKeys = settings.favorites.toSet(),
-            dockKeys = dockKeys.toSet(),
+            dockKeys = dock.mapTo(mutableSetOf()) { it.key },
             hiddenKeys = settings.hiddenApps,
             pages = settings.visiblePages,
         )
@@ -117,8 +127,7 @@ class LauncherViewModel @Inject constructor(
 
     override fun toggleDock(app: AppInfo) {
         viewModelScope.launch {
-            val current = uiState.value.dock.map { it.key }
-            if (!settingsRepository.toggleDock(app.key, current)) {
+            if (!settingsRepository.toggleDock(app.key, storedDock, limit = dockSlots.value)) {
                 _messages.tryEmit("Dock is full — remove an app first")
             }
         }
@@ -127,7 +136,8 @@ class LauncherViewModel @Inject constructor(
     override fun moveInDock(app: AppInfo, delta: Int) {
         val current = uiState.value.dock.map { it.key }
         val moved = current.moving(app.key, delta)
-        if (moved != current) viewModelScope.launch { settingsRepository.setDock(moved) }
+        // Keep apps this window doesn't show (a phone showing a tablet's 6-app dock).
+        if (moved != current) viewModelScope.launch { settingsRepository.setDock(moved + (storedDock - current.toSet())) }
     }
 
     override fun rename(app: AppInfo, label: String?) {
@@ -154,6 +164,10 @@ class LauncherViewModel @Inject constructor(
     override fun launchShortcut(shortcut: AppShortcut) = appRepository.launchShortcut(shortcut)
 
     // ---- Launcher state ------------------------------------------------------------------------
+
+    fun setDockSlots(slots: Int) {
+        dockSlots.value = slots
+    }
 
     fun setLastPage(page: PageId) {
         if (page != uiState.value.settings.lastPage) {
