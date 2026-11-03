@@ -92,6 +92,11 @@ class SettingsRepository @Inject constructor(
         return added
     }
 
+    /** Replaces the dock with [keys], in order (left to right). */
+    suspend fun setDock(keys: List<String>) = store.edit {
+        it[Keys.DOCK] = keys.distinct().take(UserSettings.MAX_DOCK_APPS).encodeList()
+    }
+
     suspend fun movePage(page: PageId, delta: Int) = store.edit { p ->
         val order = p.pageOrder().toMutableList()
         val from = order.indexOf(page)

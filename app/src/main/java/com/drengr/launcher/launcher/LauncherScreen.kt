@@ -140,7 +140,12 @@ fun LauncherScreen(
 
     CompositionLocalProvider(
         LocalAppInteractions provides viewModel,
-        LocalAppMembership provides AppMembership(state.favoriteKeys, state.dockKeys, state.hiddenKeys),
+        LocalAppMembership provides AppMembership(
+            favorites = state.favoriteKeys,
+            dock = state.dockKeys,
+            dockOrder = state.dock.map { it.key },
+            hidden = state.hiddenKeys,
+        ),
         LocalNotificationDots provides notificationDots,
     ) {
         Box(
@@ -164,7 +169,7 @@ fun LauncherScreen(
                             isCurrent = isCurrent,
                             onLayoutChange = viewModel::setAppLayout,
                         )
-                        PageId.Productivity -> ProductivityPage(navigator)
+                        PageId.Productivity -> ProductivityPage(state.settings, navigator)
                         PageId.System -> SystemPage(navigator)
                         PageId.Media -> MediaPage(state, navigator)
                     }

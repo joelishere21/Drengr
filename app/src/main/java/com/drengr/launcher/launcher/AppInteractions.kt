@@ -17,6 +17,8 @@ interface AppInteractions {
     fun launch(app: AppInfo, sourceBounds: Rect? = null, options: Bundle? = null)
     fun toggleFavorite(app: AppInfo)
     fun toggleDock(app: AppInfo)
+    /** Moves a dock app left (negative) or right (positive). */
+    fun moveInDock(app: AppInfo, delta: Int)
     /** null restores the app's own name. */
     fun rename(app: AppInfo, label: String?)
     fun setHidden(app: AppInfo, hidden: Boolean)
@@ -34,6 +36,8 @@ val LocalAppInteractions = staticCompositionLocalOf<AppInteractions> {
 data class AppMembership(
     val favorites: Set<String> = emptySet(),
     val dock: Set<String> = emptySet(),
+    /** Dock keys left to right, for move-left/right availability. */
+    val dockOrder: List<String> = emptyList(),
     val hidden: Set<String> = emptySet(),
 )
 

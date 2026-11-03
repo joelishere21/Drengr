@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Dock
 import androidx.compose.material.icons.outlined.Edit
@@ -248,6 +250,27 @@ private fun AppActionsMenu(app: AppInfo, expanded: Boolean, onDismiss: () -> Uni
                 interactions.toggleDock(app)
             },
         )
+        val dockIndex = membership.dockOrder.indexOf(app.key)
+        if (dockIndex > 0) {
+            DropdownMenuItem(
+                text = { Text("Move left in dock") },
+                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ArrowBack, null) },
+                onClick = {
+                    onDismiss()
+                    interactions.moveInDock(app, -1)
+                },
+            )
+        }
+        if (dockIndex >= 0 && dockIndex < membership.dockOrder.lastIndex) {
+            DropdownMenuItem(
+                text = { Text("Move right in dock") },
+                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, null) },
+                onClick = {
+                    onDismiss()
+                    interactions.moveInDock(app, 1)
+                },
+            )
+        }
         DropdownMenuItem(
             text = { Text("Rename") },
             leadingIcon = { Icon(Icons.Outlined.Edit, null) },

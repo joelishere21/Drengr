@@ -167,8 +167,9 @@ private fun AgendaMessage(text: String) {
     )
 }
 
+/** One event: colour bar, title, then day (optional) · time · location. */
 @Composable
-private fun AgendaRow(item: AgendaItem, onClick: () -> Unit) {
+fun AgendaRow(item: AgendaItem, onClick: () -> Unit, showDay: Boolean = true) {
     val colors = DrengrTheme.colors
     Row(
         Modifier
@@ -194,7 +195,7 @@ private fun AgendaRow(item: AgendaItem, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                listOfNotNull(item.day, item.time, item.event.location).joinToString(" · "),
+                listOfNotNull(item.day.takeIf { showDay }, item.time, item.event.location).joinToString(" · "),
                 style = DrengrTheme.typography.caption,
                 color = if (item.ongoing) colors.accent else colors.textSecondary,
                 maxLines = 1,

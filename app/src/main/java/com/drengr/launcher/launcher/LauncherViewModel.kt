@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.drengr.launcher.core.common.moving
 import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
@@ -121,6 +122,12 @@ class LauncherViewModel @Inject constructor(
                 _messages.tryEmit("Dock is full — remove an app first")
             }
         }
+    }
+
+    override fun moveInDock(app: AppInfo, delta: Int) {
+        val current = uiState.value.dock.map { it.key }
+        val moved = current.moving(app.key, delta)
+        if (moved != current) viewModelScope.launch { settingsRepository.setDock(moved) }
     }
 
     override fun rename(app: AppInfo, label: String?) {

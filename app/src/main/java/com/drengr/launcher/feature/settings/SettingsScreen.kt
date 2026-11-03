@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Icon
@@ -81,6 +82,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
     val colors = DrengrTheme.colors
     val isDefaultHome by viewModel.isDefaultHome.collectAsStateWithLifecycle()
     val hiddenApps by viewModel.hiddenApps.collectAsStateWithLifecycle()
+    val dockApps by viewModel.dockApps.collectAsStateWithLifecycle()
     val notificationAccess by viewModel.notificationAccess.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(Unit) {
@@ -217,6 +219,32 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
 
             item { SectionHeader("Weather", Modifier.padding(top = 8.dp)) }
             item { WeatherSettings(viewModel, settings) }
+
+            item { SectionHeader("Dock", Modifier.padding(top = 8.dp)) }
+            item {
+                DrengrCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 12.dp)) {
+                    Text(
+                        if (dockApps.isEmpty()) {
+                            "No apps in the dock. Long-press any app and choose Add to dock."
+                        } else {
+                            "Top to bottom is left to right. Add apps by long-pressing them (up to ${UserSettings.MAX_DOCK_APPS})."
+                        },
+                        style = DrengrTheme.typography.caption,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp),
+                    )
+                    dockApps.forEachIndexed { index, app ->
+                        DockAppRow(
+                            app = app,
+                            loadIcon = viewModel::appIcon,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < dockApps.lastIndex,
+                            onMove = { viewModel.moveDockApp(app, it) },
+                            onRemove = { viewModel.removeDockApp(app) },
+                        )
+                    }
+                }
+            }
 
             item { SectionHeader("Pages", Modifier.padding(top = 8.dp)) }
             item {
@@ -556,16 +584,46 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
 }
 
 @Composable
-private fun HiddenAppRow(app: AppInfo, loadIcon: suspend (AppInfo) -> ImageBitmap?, onUnhide: () -> Unit) {
+private fun DockAppRow(
+    app: AppInfo,
+    loadIcon: suspend (AppInfo) -> ImageBitmap?,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMove: (Int) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        SettingsAppIcon(app, loadIcon)
+        Spacer(Modifier.width(12.dp))
+        Text(app.label, style = DrengrTheme.typography.body, maxLines = 1, modifier = Modifier.weight(1f))
+        IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
+            Icon(Icons.Outlined.KeyboardArrowUp, "Move ${app.label} left")
+        }
+        IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
+            Icon(Icons.Outlined.KeyboardArrowDown, "Move ${app.label} right")
+        }
+        IconButton(onClick = onRemove) {
+            Icon(Icons.Outlined.Close, "Remove ${app.label} from dock", tint = DrengrTheme.colors.textSecondary)
+        }
+    }
+}
+
+@Composable
+private fun SettingsAppIcon(app: AppInfo, loadIcon: suspend (AppInfo) -> ImageBitmap?) {
     var icon by remember(app.key) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(app.key) { icon = loadIcon(app) }
+    val bitmap = icon
+    if (bitmap != null) {
+        Image(bitmap, contentDescription = null, modifier = Modifier.size(36.dp))
+    } else {
+        Spacer(Modifier.size(36.dp))
+    }
+}
+
+@Composable
+private fun HiddenAppRow(app: AppInfo, loadIcon: suspend (AppInfo) -> ImageBitmap?, onUnhide: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        val bitmap = icon
-        if (bitmap != null) {
-            Image(bitmap, contentDescription = null, modifier = Modifier.size(36.dp))
-        } else {
-            Spacer(Modifier.size(36.dp))
-        }
+        SettingsAppIcon(app, loadIcon)
         Spacer(Modifier.width(12.dp))
         Text(app.label, style = DrengrTheme.typography.body, modifier = Modifier.weight(1f))
         TextButton(onClick = onUnhide) { Text("Unhide", color = DrengrTheme.colors.accent) }

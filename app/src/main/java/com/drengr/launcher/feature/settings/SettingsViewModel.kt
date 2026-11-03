@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.drengr.launcher.core.common.moving
 import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.core.designsystem.AccentColor
 import androidx.compose.ui.graphics.ImageBitmap
@@ -72,6 +73,22 @@ class SettingsViewModel @Inject constructor(
         combine(appRepository.apps, repository.settings) { apps, s ->
             apps.withCustomLabels(s.appLabels).filter { it.key in s.hiddenApps }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Dock apps left to right; the launcher's defaults until the user changes the dock. */
+    val dockApps: StateFlow<List<AppInfo>> =
+        combine(appRepository.apps, repository.settings) { apps, s ->
+            val named = apps.withCustomLabels(s.appLabels).associateBy { it.key }
+            val keys = s.dock ?: appRepository.defaultDockKeys(apps)
+            keys.mapNotNull(named::get).take(UserSettings.MAX_DOCK_APPS)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun moveDockApp(app: AppInfo, delta: Int) = launch {
+        repository.setDock(dockApps.value.map { it.key }.moving(app.key, delta))
+    }
+
+    fun removeDockApp(app: AppInfo) = launch {
+        repository.setDock(dockApps.value.map { it.key } - app.key)
+    }
 
     fun unhideApp(app: AppInfo) = launch { repository.setAppHidden(app.key, false) }
 

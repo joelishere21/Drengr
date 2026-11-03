@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +27,24 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import android.Manifest
+import android.text.format.DateFormat
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.drengr.launcher.core.datastore.SettingsRepository
+import com.drengr.launcher.core.domain.UserSettings
+import com.drengr.launcher.feature.common.rememberPermissionRequest
+import com.drengr.launcher.feature.home.Agenda
+import com.drengr.launcher.feature.home.AgendaUi
+import com.drengr.launcher.feature.home.rememberCurrentTime
+import com.drengr.launcher.integrations.calendar.CalendarEvent
+import com.drengr.launcher.integrations.calendar.CalendarRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import com.drengr.launcher.core.designsystem.IconBadge
 import com.drengr.launcher.core.designsystem.PageHeader
 import com.drengr.launcher.core.designsystem.Pill
@@ -51,11 +67,28 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ProductivityViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val registry: ActionRegistry,
+    private val calendar: CalendarRepository,
 ) : ViewModel() {
+    private val calendarGranted = MutableStateFlow(calendar.hasPermission())
+
+    val agenda: StateFlow<AgendaUi> = calendarGranted
+        .flatMapLatest { granted ->
+            if (granted) calendar.upcoming().map { AgendaUi.Ready(it) } else flowOf(AgendaUi.NeedsPermission)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AgendaUi.Loading)
+
+    /** Calendar access can change in system settings; check again whenever the launcher returns. */
+    fun refreshCalendarAccess() {
+        calendarGranted.value = calendar.hasPermission()
+    }
+
+    fun calendarIntent(event: CalendarEvent) = calendar.viewIntent(event)
+
     private val _note = MutableStateFlow("")
     val note: StateFlow<String> = _note.asStateFlow()
     private var saveJob: Job? = null
@@ -85,6 +118,7 @@ class ProductivityViewModel @Inject constructor(
 
 @Composable
 fun ProductivityPage(
+    settings: UserSettings,
     navigator: LauncherNavigator,
     viewModel: ProductivityViewModel = hiltViewModel(),
 ) {
@@ -92,6 +126,22 @@ fun ProductivityPage(
     val note by viewModel.note.collectAsStateWithLifecycle()
     val actions = viewModel.quickActions(context)
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE · MMM d"))
+    val agenda by viewModel.agenda.collectAsStateWithLifecycle()
+    val now by rememberCurrentTime()
+    val use24h = settings.use24Hour ?: DateFormat.is24HourFormat(context)
+    val agendaItems = remember(agenda, now, use24h) {
+        (agenda as? AgendaUi.Ready)?.let { Agenda.build(it.events, now, use24h, limit = AGENDA_LIMIT) }.orEmpty()
+    }
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshCalendarAccess()
+        onPauseOrDispose { }
+    }
+    val requestCalendar = rememberPermissionRequest(
+        permission = Manifest.permission.READ_CALENDAR,
+        blockedMessage = "Calendar access is off. Tap Agenda again to open App info → Permissions.",
+        onResult = { viewModel.refreshCalendarAccess() },
+    )
 
     Column(
         Modifier
@@ -102,20 +152,16 @@ fun ProductivityPage(
         PageHeader("Productivity", subtitle = today, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
-        DrengrCard(Modifier.fillMaxWidth(), onClick = { navigator.runActionById("calendar") }) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(Icons.Outlined.CalendarToday)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Today's agenda", style = DrengrTheme.typography.title)
-                    Text(
-                        "Tap to open your calendar. Inline events arrive with the calendar integration.",
-                        style = DrengrTheme.typography.caption,
-                        color = DrengrTheme.colors.textSecondary,
-                    )
-                }
-            }
-        }
+        WeekAgenda(
+            state = agenda,
+            items = agendaItems,
+            onRequestAccess = requestCalendar,
+            onOpenCalendar = { navigator.runActionById("calendar") },
+            onOpenEvent = { event ->
+                runCatching { context.startActivity(viewModel.calendarIntent(event)) }
+                    .onFailure { navigator.runActionById("calendar") }
+            },
+        )
 
         Spacer(Modifier.height(12.dp))
         DrengrCard(Modifier.fillMaxWidth()) {
