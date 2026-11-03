@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.quadro.launcher"
+    namespace = "com.drengr.launcher"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.quadro.launcher"
+        applicationId = "com.drengr.launcher"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

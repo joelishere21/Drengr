@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Quadro"
+rootProject.name = "Drengr"
 include(":app")

@@ -41,7 +41,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Quadro">
+        android:theme="@style/Theme.Drengr">
 
         <activity
             android:name=".launcher.LauncherActivity"
@@ -53,7 +53,7 @@
             android:resizeableActivity="true"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
             android:windowSoftInputMode="adjustResize|stateAlwaysHidden"
-            android:theme="@style/Theme.Quadro.Launcher">
+            android:theme="@style/Theme.Drengr.Launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
@@ -67,7 +67,7 @@
             android:name=".feature.settings.SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title"
-            android:taskAffinity="com.quadro.launcher.settings"
+            android:taskAffinity="com.drengr.launcher.settings"
             android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>

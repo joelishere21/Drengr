@@ -2,9 +2,6 @@
 
 > A smarter home for Android. Native Kotlin + Jetpack Compose, Omarchy-inspired, blue accent (`#579BFF`).
 
-Originally planned under the name Quadro, so the code package and app ID are still `com.quadro.launcher`
-(changing the app ID would make Android treat it as a new app and drop existing settings).
-
 ## Status: Alpha 0.1 (Milestones 1, 2 and most of 4)
 
 | Alpha 0.1 criterion | State |
@@ -65,7 +62,7 @@ export ANDROID_HOME=~/Android/Sdk
 ## Code layout
 
 ```
-app/src/main/java/com/quadro/launcher/
+app/src/main/java/com/drengr/launcher/
 ├── LauncherApplication.kt           Hilt entry point
 ├── core/
 │   ├── designsystem/                colors, typography, shapes, spacing, shared components
