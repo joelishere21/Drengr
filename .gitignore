@@ -33,3 +33,10 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local tooling
+.DS_Store
+.claude/
+
+# Planning documents (kept local)
+Quadro_Android_Launcher_Project_Plan.*

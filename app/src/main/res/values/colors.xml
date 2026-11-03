@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="quadro_background">#FF101216</color>
+    <color name="quadro_surface">#FF191D24</color>
+    <color name="quadro_accent">#FF579BFF</color>
+    <color name="quadro_accent_soft">#FF203B60</color>
+    <color name="quadro_divider">#FF303744</color>
+</resources>

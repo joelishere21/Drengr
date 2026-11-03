@@ -1,0 +1,89 @@
+# Quadro — Android Launcher
+
+> A smarter home for Android. Native Kotlin + Jetpack Compose, Omarchy-inspired, blue accent (`#579BFF`).
+
+The full product spec is in `Quadro_Android_Launcher_Project_Plan.pdf`.
+
+## Status: Alpha 0.1 (Milestones 1, 2 and most of 4)
+
+| Alpha 0.1 criterion | State |
+|---|---|
+| Installable APK, selectable as the default Home app | ✅ HOME intent filter + RoleManager prompt in Settings |
+| Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media |
+| Working Home screen and persistent dock | ✅ Clock, date, next alarm, status, glance cards, favorites; dock with 4 apps + Apps + Command Center |
+| App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts |
+| Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
+| Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe down on Home), ~30 built-in actions |
+| Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
+| Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
+
+Not done yet (later milestones): calendar/weather/media-session integrations, Android widget hosting, wallpaper support, tablet layouts, configurable gesture zones.
+
+## Gestures
+
+- **Swipe left/right:** change page (no wraparound)
+- **Home page, swipe down:** Command Center (can be turned off in Settings)
+- **Home page, swipe up:** Applications
+- **Home page, long-press on empty space:** Settings (page editing)
+- **Long-press an app:** shortcuts, favorite, dock, app info, uninstall
+- **Home button / Back:** close the overlay, then return to the Home page
+
+## Build
+
+Requires JDK 17–21 (not JDK 27 — AGP 8.7 doesn't support it) and the Android SDK (platform 35).
+
+```bash
+export JAVA_HOME=~/.local/share/mise/installs/java/temurin-21.0.13+9.0.LTS
+export ANDROID_HOME=~/Android/Sdk
+./gradlew assembleDebug          # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew testDebugUnitTest      # unit tests
+./gradlew lintDebug              # Android lint
+```
+
+`local.properties` (git-ignored) points at the SDK.
+
+## Install on your phone (Galaxy S25 Ultra)
+
+1. Turn on **Settings → About phone → Software information → tap Build number 7×** to enable Developer options.
+2. Turn on **Developer options → USB debugging** and connect over USB (or use Wireless debugging).
+3. `~/Android/Sdk/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk`
+4. Open Quadro, long-press Home → **Settings → Default Home app**, or use the Command Center action
+   "Choose default Home app". To switch back: **Settings → Apps → Choose default apps → Home app**.
+
+## Code layout
+
+```
+app/src/main/java/com/quadro/launcher/
+├── LauncherApplication.kt           Hilt entry point
+├── core/
+│   ├── designsystem/                colors, typography, shapes, spacing, shared components
+│   ├── datastore/                   SettingsRepository (DataStore + JSON export/import)
+│   ├── domain/                      models: PageId, AppInfo, UserSettings…
+│   └── common/                      FuzzyMatcher
+├── integrations/                    Android API wrappers
+│   ├── applications/                AppRepository (LauncherApps, icons, shortcuts)
+│   ├── battery/  connectivity/  media/  system/
+├── plugins/                         ActionRegistry, LauncherAction, FlashlightController
+├── launcher/                        LauncherActivity, LauncherScreen (pager), ViewModel, Dock, PageIndicator, AppItem
+└── feature/
+    ├── home/  applications/  productivity/  system/  media/
+    ├── commandcenter/               overlay + ranking ViewModel
+    └── settings/                    SettingsActivity
+```
+
+**Principles (from the spec):** screens consume ViewModels and never write preferences directly. Android
+APIs sit behind repositories. Command Center actions are trusted, built-in `LauncherAction`s registered in
+`ActionRegistry`, each labeled **Direct** (the launcher does it itself) or **Settings/App** (hands off to
+Android). Only normal install-time permissions are declared. Sensitive access (calendar, notifications,
+location) should be requested only when the user turns on the feature that needs it.
+
+## Adding a Command Center action
+
+Register a `LauncherAction` in `ActionRegistry.builtIns()`:
+
+```kotlin
+LauncherAction("id", "Label", "Description", ActionCategory.System, ActionKind.OpensSettings,
+    Icons.Outlined.Something, keywords = listOf("alias")) { ctx -> ctx.launch(Intent(...)) }
+```
+
+It then shows up in Command Center search, and on the System or Productivity page if its category matches.

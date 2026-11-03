@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Four rounded tiles: the modular "quadro" mark. Fits within the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#579BFF"
+        android:pathData="M37,33h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+    <path
+        android:fillColor="#F1F4F9"
+        android:fillAlpha="0.85"
+        android:pathData="M61,33h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+    <path
+        android:fillColor="#F1F4F9"
+        android:fillAlpha="0.85"
+        android:pathData="M37,57h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+    <path
+        android:fillColor="#F1F4F9"
+        android:fillAlpha="0.45"
+        android:pathData="M61,57h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+</vector>
