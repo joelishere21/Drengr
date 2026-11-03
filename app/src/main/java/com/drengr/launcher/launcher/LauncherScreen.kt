@@ -43,6 +43,7 @@ import com.drengr.launcher.feature.smarthome.SmartHomePage
 import com.drengr.launcher.launcher.components.Dock
 import com.drengr.launcher.launcher.components.PageIndicator
 import com.drengr.launcher.plugins.ActionResult
+import com.drengr.launcher.feature.notes.NoteEditorHost
 import com.drengr.launcher.core.domain.GestureTargets
 import com.drengr.launcher.plugins.LauncherAction
 import kotlinx.coroutines.flow.Flow
@@ -214,6 +215,8 @@ fun LauncherScreen(
                     onOpenCommandCenter = navigator.openCommandCenter,
                 )
             }
+
+            NoteEditorHost(viewModel.noteEditor)
 
             CommandCenterOverlay(
                 visible = commandCenterOpen,

@@ -75,6 +75,10 @@ import com.drengr.launcher.core.designsystem.DrengrTheme
 import com.drengr.launcher.core.designsystem.SectionHeader
 import com.drengr.launcher.core.domain.AppCategory
 import com.drengr.launcher.integrations.media.AudioController
+import com.drengr.launcher.integrations.media.PlaybackHistoryRepository
+import com.drengr.launcher.integrations.media.PlayedItem
+import com.drengr.launcher.integrations.media.PodcastApps
+import kotlinx.coroutines.launch
 import com.drengr.launcher.integrations.media.AudioState
 import com.drengr.launcher.integrations.media.OutputKind
 import com.drengr.launcher.launcher.LauncherNavigator
@@ -95,7 +99,15 @@ class MediaViewModel @Inject constructor(
     private val audio: AudioController,
     private val media: MediaSessionRepository,
     private val notifications: NotificationRepository,
+    private val history: PlaybackHistoryRepository,
 ) : ViewModel() {
+    val recentlyPlayed: StateFlow<List<PlayedItem>> = history.items
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun clearHistory() = viewModelScope.launch { history.clear() }
+
+    fun openApp(item: PlayedItem) = media.openPlayer(item.packageName)
+
     /** Polled while visible: volume keys and output changes have no permission-free callback. */
     val state: StateFlow<AudioState> = flow {
         while (true) {
@@ -135,7 +147,9 @@ fun MediaPage(
     val hasAccess by viewModel.hasAccess.collectAsStateWithLifecycle()
     val playing by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val colors = DrengrTheme.colors
-    val mediaApps = state.apps.filter { it.category == AppCategory.Media }
+    val podcastApps = state.apps.filter { PodcastApps.isPodcastApp(it.packageName, it.label) }
+    val mediaApps = state.apps.filter { it.category == AppCategory.Media && it !in podcastApps }
+    val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(Unit) {
         viewModel.onResume()
@@ -225,6 +239,17 @@ fun MediaPage(
                             Text(audio.outputLabel, style = DrengrTheme.typography.title)
                         }
                     }
+                }
+
+                // The track playing now is already in the player card.
+                val history = recentlyPlayed.filterNot { current != null && it.packageName == current.packageName && it.title == current.title }
+                if (history.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    RecentlyPlayedSection(history, onOpen = viewModel::openApp, onClear = viewModel::clearHistory)
+                }
+                if (podcastApps.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    PodcastsSection(podcastApps)
                 }
 
                 if (mediaApps.isNotEmpty()) {

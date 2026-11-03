@@ -76,7 +76,14 @@ data class UserSettings(
     val hiddenApps: Set<String> = emptySet(),
     /** User-chosen names by app key. */
     val appLabels: Map<String, String> = emptyMap(),
-    val quickNote: String = "",
+    /** Most recently edited first. The old single quick note becomes the first note. */
+    val notes: List<Note> = emptyList(),
+    /** In storage order; see [Tasks.ordered] for display order. */
+    val tasks: List<TaskItem> = emptyList(),
+    /** Command Center also searches contacts (needs contacts access, asked when turned on). */
+    val searchContacts: Boolean = false,
+    /** Command Center also searches notes and open tasks. */
+    val searchNotesAndTasks: Boolean = true,
     /** null = follow the system 12/24-hour setting. */
     val use24Hour: Boolean? = null,
     /** Gesture → target, only for gestures the user changed. See [gestureTarget]. */

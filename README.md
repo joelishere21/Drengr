@@ -10,7 +10,7 @@ A drengr is an Old Norse word used in Viking-Age Scandinavia to describe a man o
 |---|---|
 | Installable APK, selectable as the default Home app | ✅ HOME intent filter + RoleManager prompt in Settings |
 | Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media, plus an optional Smart home page |
-| Working Home screen and persistent dock | ✅ Clock, date, weather, next alarm, agenda, quick note, favorites over your wallpaper; dock with 4 apps + Apps + Command Center (reorder from an app's long-press menu or Settings → Dock); Productivity page lists the next 7 days of events by day |
+| Working Home screen and persistent dock | ✅ Clock, date, weather, next alarm, agenda, open tasks, latest note, favorites over your wallpaper; dock with 4 apps + Apps + Command Center (reorder from an app's long-press menu or Settings → Dock); Productivity page has the next 7 days of events, tasks, notes and recent documents |
 | App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts, rename and hide apps |
 | Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
 | Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe up on Home), ~30 built-in actions |
@@ -21,7 +21,7 @@ Not done yet (later milestones): Android widget hosting.
 
 **Tablets and landscape:** layouts follow the window size (so split screen and DeX work too). Phones in
 portrait look as before. Landscape-shaped windows split Home into two columns: clock, weather, alarm and
-favorites on the left, agenda and quick note on the right (on a phone in landscape the right column scrolls
+favorites on the left, agenda, tasks and note on the right (on a phone in landscape the right column scrolls
 and holds the favorites). A tablet in portrait keeps one wide column. The app grid adds columns as the screen
 gets wider, keeping icons about phone-sized; list view shows rows side by side. On tablets the dock is a
 centered bar with room for 6 apps (phones show the first 4). The other pages put their sections side by
@@ -33,6 +33,22 @@ their cards out two or three across, Command Center becomes a centered panel and
 **Agenda (Home):** the next 3 events from every calendar on the phone (Google, Samsung, Exchange…), read
 locally via `CalendarContract`, updated live when calendars change. Calendar access is requested the first
 time the Agenda card is tapped. Tap an event to open it, or the header to open the calendar app.
+
+**Tasks and notes:** a simple task list (Productivity → Tasks; open ones also show on Home, where you can
+check them off) and any number of notes (Productivity → Notes, or the note card on Home). Long-press a task
+to edit, reorder or delete it. Notes open in a full-screen editor and save as you type; an empty note is
+discarded. Both stay on the phone and are included in settings exports. Your old quick note became the
+first note.
+
+**Command Center search** covers apps, actions, notes and open tasks, and offers "Add task" and "New
+note" for whatever you typed (Enter still searches the web when nothing else matches). Contacts are
+searched too once you turn on **Settings → Command Center → Search contacts**, which is when contacts
+access is asked for; contacts are read on the phone, never copied. That section can also clear the Recent list.
+
+**Media extras:** "Recently played" lists the last 10 tracks or episodes, recorded from media sessions
+while notification access is on (Android shares no listening history, so it only knows what played since),
+kept on the phone, out of exports, with a Clear button. Tap one to open the app it played in. Installed
+podcast apps get their own section with their app shortcuts.
 
 **Recent documents (Productivity):** tap **Add** to pin files with the system file picker; Drengr keeps
 access to exactly those files (up to 12) and nothing else. Tap one to open it in its app; long-press to
@@ -106,7 +122,7 @@ app/src/main/java/com/drengr/launcher/
 **Principles (from the spec):** screens consume ViewModels and never write preferences directly. Android
 APIs sit behind repositories. Command Center actions are trusted, built-in `LauncherAction`s registered in
 `ActionRegistry`, each labeled **Direct** (the launcher does it itself) or **Settings/App** (hands off to
-Android). Runtime permissions (calendar, approximate location) are requested only when the user taps the feature
+Android). Runtime permissions (calendar, approximate location, contacts) are requested only when the user taps the feature
 that needs them; if Android stops showing the prompt, the next tap opens App info instead. Notification access
 (Settings → Notifications & media, or the Media page) is optional: it powers notification dots and the Media
 page's track, artwork, progress and seeking. Drengr keeps only per-app counts, never notification content.

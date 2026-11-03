@@ -1,5 +1,8 @@
 package com.drengr.launcher.feature.home
 
+import com.drengr.launcher.core.domain.Note
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -205,23 +208,32 @@ fun AgendaRow(item: AgendaItem, onClick: () -> Unit, showDay: Boolean = true) {
     }
 }
 
+/** The latest note, one line. Tap to edit it; + starts a new one. */
 @Composable
-fun QuickNoteCard(note: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun QuickNoteCard(note: Note?, onOpen: () -> Unit, onNew: () -> Unit, modifier: Modifier = Modifier) {
     DrengrCard(
         modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        onClick = onOpen,
+        contentPadding = PaddingValues(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(Icons.Outlined.Edit, size = 32.dp)
             Spacer(Modifier.width(12.dp))
             Text(
-                note.ifBlank { "Quick note · tap to write something down" },
+                note?.title ?: "Quick note · tap to write something down",
                 style = DrengrTheme.typography.body,
-                color = if (note.isBlank()) DrengrTheme.colors.textSecondary else DrengrTheme.colors.textPrimary,
+                color = if (note == null) DrengrTheme.colors.textSecondary else DrengrTheme.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
+            if (note != null) {
+                IconButton(onClick = onNew) {
+                    Icon(Icons.Outlined.Add, contentDescription = "New note", tint = DrengrTheme.colors.accent)
+                }
+            } else {
+                Spacer(Modifier.size(48.dp))
+            }
         }
     }
 }

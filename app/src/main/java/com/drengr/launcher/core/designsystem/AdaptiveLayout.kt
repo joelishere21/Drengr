@@ -50,6 +50,9 @@ data class LauncherLayout(val widthDp: Int, val heightDp: Int) {
         else -> 3
     }
 
+    /** Open tasks shown on Home. */
+    val homeTaskLimit: Int get() = if (isShort) 2 else if (isLargeScreen) 5 else 3
+
     val dockSlots: Int get() = if (isLargeScreen) UserSettings.MAX_DOCK_APPS else UserSettings.PHONE_DOCK_APPS
 
     /** The dock stays a compact bar on wide screens instead of spanning the whole window. */

@@ -46,6 +46,8 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import com.drengr.launcher.integrations.govee.GoveeRepository
 import com.drengr.launcher.integrations.media.AudioController
+import com.drengr.launcher.feature.notes.NoteEditorController
+import androidx.compose.material.icons.outlined.Checklist
 import com.drengr.launcher.integrations.system.expandNotificationShade
 import com.drengr.launcher.integrations.system.expandQuickSettings
 import androidx.compose.material.icons.outlined.Notifications
@@ -63,6 +65,7 @@ class ActionRegistry @Inject constructor(
     private val flashlight: FlashlightController,
     private val audio: AudioController,
     private val govee: GoveeRepository,
+    private val notes: NoteEditorController,
 ) {
     private val actions = LinkedHashMap<String, LauncherAction>()
 
@@ -229,8 +232,13 @@ class ActionRegistry @Inject constructor(
             ActionKind.OpensApp, Icons.Outlined.Map, listOf("navigate", "directions")) {
             it.launch(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MAPS))
         },
-        LauncherAction("quick_note", "Write a quick note", "Jump to the note on the Productivity page",
-            ActionCategory.Productivity, ActionKind.Navigation, Icons.Outlined.Edit, listOf("note", "memo", "jot")) {
+        LauncherAction("quick_note", "Write a quick note", "Start a new note",
+            ActionCategory.Productivity, ActionKind.Navigation, Icons.Outlined.Edit, listOf("note", "memo", "jot", "new note")) {
+            notes.openNew()
+            ActionResult.Done
+        },
+        LauncherAction("tasks", "Tasks", "See and add tasks on the Productivity page",
+            ActionCategory.Productivity, ActionKind.Navigation, Icons.Outlined.Checklist, listOf("todo", "to-do", "to do", "checklist")) {
             ActionResult.Navigate(PageId.Productivity)
         },
 

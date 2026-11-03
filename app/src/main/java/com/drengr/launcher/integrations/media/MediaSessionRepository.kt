@@ -85,7 +85,8 @@ class MediaSessionRepository @Inject constructor(
         awaitClose {
             if (listening) sessions.removeOnActiveSessionsChangedListener(sessionsChanged)
             current?.unregisterCallback(callback)
-            active = null
+            // Several screens can follow sessions at once; only let go of the one this flow set.
+            if (active === current) active = null
         }
     }
 

@@ -22,6 +22,7 @@ import com.drengr.launcher.integrations.weather.WeatherRepository
 import com.drengr.launcher.core.domain.UserSettings
 import com.drengr.launcher.core.domain.HomeGesture
 import com.drengr.launcher.plugins.ActionRegistry
+import com.drengr.launcher.integrations.contacts.ContactsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +60,30 @@ class SettingsViewModel @Inject constructor(
     private val notifications: NotificationRepository,
     private val govee: GoveeRepository,
     private val actions: ActionRegistry,
+    private val contacts: ContactsRepository,
 ) : ViewModel() {
+
+    private val _contactsGranted = MutableStateFlow(contacts.hasPermission())
+    val contactsGranted: StateFlow<Boolean> = _contactsGranted.asStateFlow()
+
+    fun refreshContactsAccess() {
+        _contactsGranted.value = contacts.hasPermission()
+    }
+
+    fun setSearchNotesAndTasks(enabled: Boolean) = launch { repository.setSearchNotesAndTasks(enabled) }
+
+    fun setSearchContacts(enabled: Boolean) = launch { repository.setSearchContacts(enabled) }
+
+    /** After the contacts permission prompt: contact search turns on only if access was given. */
+    fun onContactsResult(granted: Boolean) {
+        refreshContactsAccess()
+        if (granted) setSearchContacts(true)
+    }
+
+    fun clearRecents() = launch {
+        repository.clearRecents()
+        _messages.emit("Recent list cleared")
+    }
 
     val goveeConnected: StateFlow<Boolean> =
         govee.hasKey.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

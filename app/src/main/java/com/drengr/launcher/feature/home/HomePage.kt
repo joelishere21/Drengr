@@ -48,6 +48,8 @@ import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.feature.common.rememberPermissionRequest
 import com.drengr.launcher.core.domain.GestureTargets
+import com.drengr.launcher.feature.productivity.HomeTasksCard
+import com.drengr.launcher.feature.productivity.NotesAndTasksViewModel
 import com.drengr.launcher.core.domain.HomeGesture
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemGestures
@@ -76,6 +78,9 @@ fun HomePage(
     val now by rememberCurrentTime()
     val agenda by viewModel.agenda.collectAsStateWithLifecycle()
     val weather by viewModel.weather.collectAsStateWithLifecycle()
+    val notesAndTasks: NotesAndTasksViewModel = hiltViewModel()
+    val notes by notesAndTasks.notes.collectAsStateWithLifecycle()
+    val tasks by notesAndTasks.tasks.collectAsStateWithLifecycle()
     val settings by rememberUpdatedState(state.settings)
     val density = LocalDensity.current
     val threshold = with(density) { 96.dp.toPx() }
@@ -178,10 +183,21 @@ fun HomePage(
                     .onFailure { navigator.runActionById("calendar") }
             },
         )
+        if (tasks.any { !it.done }) {
+            Spacer(Modifier.height(10.dp))
+            HomeTasksCard(
+                tasks = tasks,
+                limit = layout.homeTaskLimit,
+                onToggle = { notesAndTasks.setDone(it, !it.done) },
+                onOpenAll = { navigator.goTo(PageId.Productivity) },
+            )
+        }
         Spacer(Modifier.height(10.dp))
+        val latest = notes.firstOrNull()
         QuickNoteCard(
-            note = state.settings.quickNote,
-            onClick = { navigator.goTo(PageId.Productivity) },
+            note = latest,
+            onOpen = { if (latest != null) notesAndTasks.openNote(latest) else notesAndTasks.newNote() },
+            onNew = notesAndTasks::newNote,
         )
     }
 

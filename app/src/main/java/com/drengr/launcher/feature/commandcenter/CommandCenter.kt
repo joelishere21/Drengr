@@ -51,6 +51,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.drengr.launcher.core.common.FuzzyMatcher
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.AddTask
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.StickyNote2
+import com.drengr.launcher.core.domain.Note
+import com.drengr.launcher.core.domain.Notes
+import com.drengr.launcher.core.domain.TaskItem
+import com.drengr.launcher.core.domain.Tasks
+import com.drengr.launcher.feature.notes.NoteEditorController
+import com.drengr.launcher.integrations.contacts.Contact
+import com.drengr.launcher.integrations.contacts.ContactsRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.launch
+import java.util.UUID
 import com.drengr.launcher.core.domain.searchKeywords
 import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.core.datastore.SettingsRepository
@@ -93,6 +109,28 @@ sealed interface CommandItem {
     data class WebSearch(val query: String) : CommandItem {
         override val id get() = "web"
     }
+
+    data class NoteResult(val note: Note) : CommandItem {
+        override val id get() = "note:${note.id}"
+    }
+
+    data class TaskResult(val task: TaskItem) : CommandItem {
+        override val id get() = "task:${task.id}"
+    }
+
+    data class ContactResult(val contact: Contact) : CommandItem {
+        override val id get() = "contact:${contact.id}"
+    }
+
+    /** Adds the typed text as a task. */
+    data class AddTask(val title: String) : CommandItem {
+        override val id get() = "add_task"
+    }
+
+    /** Starts a note with the typed text. */
+    data class NewNote(val text: String) : CommandItem {
+        override val id get() = "new_note"
+    }
 }
 
 @Immutable
@@ -102,15 +140,52 @@ data class CommandSection(val title: String, val items: List<CommandItem>)
 class CommandCenterViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     apps: AppRepository,
-    settings: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     val registry: ActionRegistry,
+    private val contacts: ContactsRepository,
+    private val noteEditor: NoteEditorController,
 ) : ViewModel() {
     val query = MutableStateFlow("")
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val sections: StateFlow<List<CommandSection>> =
-        combine(query, apps.apps, settings.settings) { q, appList, s -> build(q.trim(), appList, s) }
+        combine(query, apps.apps, settingsRepository.settings) { q, appList, s -> Triple(q.trim(), appList, s) }
+            .mapLatest { (q, appList, s) -> build(q, appList, s) + extraSections(q, s) }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Contacts, notes and tasks matching [q], then ways to act on the typed text. */
+    private suspend fun extraSections(q: String, settings: UserSettings): List<CommandSection> {
+        if (q.isEmpty()) return emptyList()
+        val people = if (settings.searchContacts && q.length >= 2) contacts.search(q, MAX_CONTACTS) else emptyList()
+        val notesAndTasks = if (settings.searchNotesAndTasks) {
+            Notes.search(settings.notes, q).take(MAX_NOTES).map { CommandItem.NoteResult(it) } +
+                Tasks.search(settings.tasks, q).take(MAX_TASKS).map { CommandItem.TaskResult(it) }
+        } else {
+            emptyList()
+        }
+        return listOf(
+            CommandSection("Contacts", people.map { CommandItem.ContactResult(it) }),
+            CommandSection("Notes & tasks", notesAndTasks),
+            // Web search first: Enter with no other match still searches the web, as before.
+            CommandSection("More", listOf(CommandItem.WebSearch(q), CommandItem.AddTask(q), CommandItem.NewNote(q))),
+        ).filter { it.items.isNotEmpty() }
+    }
+
+    fun addTask(title: String) = viewModelScope.launch {
+        settingsRepository.editTasks { Tasks.add(it, UUID.randomUUID().toString(), title, System.currentTimeMillis()) }
+    }
+
+    /** Saves [text] as a new note and opens it, so the user can keep writing. */
+    fun newNote(text: String) = viewModelScope.launch {
+        val id = UUID.randomUUID().toString()
+        settingsRepository.saveNote(id, text)
+        noteEditor.open(id)
+    }
+
+    fun openNote(note: Note) = noteEditor.open(note.id)
+
+    fun contactIntent(contact: Contact) = contacts.viewIntent(contact)
 
     private fun build(q: String, installed: List<AppInfo>, settings: UserSettings): List<CommandSection> {
         val actions = registry.available(context)
@@ -150,11 +225,14 @@ class CommandCenterViewModel @Inject constructor(
             FuzzyMatcher.score(q, action.label, action.keywords)?.let { it to CommandItem.Action(action) }
         }
         val ranked = (appMatches + actionMatches).sortedByDescending { it.first }.map { it.second }.take(MAX_RESULTS)
-        return listOf(CommandSection("Results", ranked + CommandItem.WebSearch(q)))
+        return listOf(CommandSection("Results", ranked)).filter { it.items.isNotEmpty() }
     }
 
     private companion object {
         const val MAX_RESULTS = 20
+        const val MAX_CONTACTS = 4
+        const val MAX_NOTES = 3
+        const val MAX_TASKS = 3
     }
 }
 
@@ -187,6 +265,15 @@ fun CommandCenterOverlay(
                 is CommandItem.App -> onLaunchApp(item.app)
                 is CommandItem.Action -> onRunAction(item.action)
                 is CommandItem.WebSearch -> viewModel.registry.webSearch(context, item.query)
+                is CommandItem.NoteResult -> viewModel.openNote(item.note)
+                is CommandItem.TaskResult -> viewModel.registry["tasks"]?.let(onRunAction)
+                is CommandItem.ContactResult -> runCatching { context.startActivity(viewModel.contactIntent(item.contact)) }
+                    .onFailure { Toast.makeText(context, "Couldn't open the contact", Toast.LENGTH_SHORT).show() }
+                is CommandItem.AddTask -> {
+                    viewModel.addTask(item.title)
+                    Toast.makeText(context, "Task added", Toast.LENGTH_SHORT).show()
+                }
+                is CommandItem.NewNote -> viewModel.newNote(item.text)
             }
         }
 
@@ -236,7 +323,7 @@ fun CommandCenterOverlay(
                     DrengrSearchField(
                         value = query,
                         onValueChange = { viewModel.query.value = it },
-                        placeholder = "Search apps, actions, settings…",
+                        placeholder = "Search apps, actions, notes…",
                         modifier = Modifier.focusRequester(focusRequester),
                         onSubmit = { sections.firstOrNull()?.items?.firstOrNull()?.let(::execute) },
                     )
@@ -282,6 +369,10 @@ private fun CommandRow(item: CommandItem, onClick: () -> Unit) {
             is CommandItem.App -> AppIcon(item.app, 34.dp)
             is CommandItem.Action -> IconBadge(item.action.icon, size = 34.dp)
             is CommandItem.WebSearch -> IconBadge(Icons.Outlined.Public, size = 34.dp)
+            is CommandItem.NoteResult, is CommandItem.NewNote -> IconBadge(Icons.Outlined.StickyNote2, size = 34.dp)
+            is CommandItem.TaskResult -> IconBadge(Icons.Outlined.RadioButtonUnchecked, size = 34.dp)
+            is CommandItem.AddTask -> IconBadge(Icons.Outlined.AddTask, size = 34.dp)
+            is CommandItem.ContactResult -> IconBadge(Icons.Outlined.Person, size = 34.dp)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -289,6 +380,11 @@ private fun CommandRow(item: CommandItem, onClick: () -> Unit) {
                 is CommandItem.App -> item.app.label to item.app.category.label
                 is CommandItem.Action -> item.action.label to item.action.description
                 is CommandItem.WebSearch -> "Search the web for “${item.query}”" to "Opens your browser"
+                is CommandItem.NoteResult -> item.note.title to item.note.preview.ifEmpty { "Note" }
+                is CommandItem.TaskResult -> item.task.title to "Open task"
+                is CommandItem.ContactResult -> item.contact.name to "Contact"
+                is CommandItem.AddTask -> "Add task “${item.title}”" to "Saved on Productivity → Tasks"
+                is CommandItem.NewNote -> "New note “${item.text}”" to "Starts a note with this text"
             }
             Text(title, style = DrengrTheme.typography.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
@@ -304,6 +400,9 @@ private fun CommandRow(item: CommandItem, onClick: () -> Unit) {
             is CommandItem.App -> Pill("App")
             is CommandItem.Action -> Pill(item.action.kind.label, highlighted = item.action.kind == ActionKind.Direct)
             is CommandItem.WebSearch -> Pill("Web")
+            is CommandItem.NoteResult, is CommandItem.NewNote -> Pill("Note")
+            is CommandItem.TaskResult, is CommandItem.AddTask -> Pill("Task")
+            is CommandItem.ContactResult -> Pill("Contact")
         }
     }
 }

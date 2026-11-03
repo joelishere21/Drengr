@@ -13,6 +13,7 @@
     <!-- Runtime permissions, requested only when the user turns on the feature that needs them. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <!-- Package visibility (Android 11+): see launchable apps and resolve common intents. -->
     <queries>

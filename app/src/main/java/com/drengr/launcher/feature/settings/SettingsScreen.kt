@@ -86,10 +86,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
     val dockApps by viewModel.dockApps.collectAsStateWithLifecycle()
     val goveeConnected by viewModel.goveeConnected.collectAsStateWithLifecycle()
     val notificationAccess by viewModel.notificationAccess.collectAsStateWithLifecycle()
+    val contactsGranted by viewModel.contactsGranted.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(Unit) {
         viewModel.refreshDefaultHome()
         viewModel.refreshNotificationAccess()
+        viewModel.refreshContactsAccess()
         onPauseOrDispose { }
     }
     LaunchedEffect(Unit) {
@@ -280,6 +282,18 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                     choices = choices,
                     onSetGesture = viewModel::setGesture,
                     onSetEdgeGuard = viewModel::setGestureEdgeGuard,
+                )
+            }
+
+            item { SectionHeader("Command Center", Modifier.padding(top = 8.dp)) }
+            item {
+                CommandCenterSettingsCard(
+                    settings = settings,
+                    contactsGranted = contactsGranted,
+                    onSearchNotes = viewModel::setSearchNotesAndTasks,
+                    onSearchContacts = viewModel::setSearchContacts,
+                    onContactsResult = viewModel::onContactsResult,
+                    onClearRecents = viewModel::clearRecents,
                 )
             }
 

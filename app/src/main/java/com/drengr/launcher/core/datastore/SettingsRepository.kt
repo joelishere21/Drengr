@@ -12,6 +12,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.drengr.launcher.core.designsystem.AccentColor
 import com.drengr.launcher.core.domain.AppLayout
+import com.drengr.launcher.core.domain.Note
+import com.drengr.launcher.core.domain.Notes
+import com.drengr.launcher.core.domain.TaskItem
+import com.drengr.launcher.core.domain.Tasks
 import com.drengr.launcher.core.domain.GestureTargets
 import com.drengr.launcher.core.domain.HomeGesture
 import com.drengr.launcher.core.domain.PageId
@@ -53,7 +57,12 @@ class SettingsRepository @Inject constructor(
         val LAUNCH_COUNTS = stringPreferencesKey("launch_counts")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val APP_LABELS = stringPreferencesKey("app_labels")
+        /** Legacy single note; read only until notes are first saved. */
         val QUICK_NOTE = stringPreferencesKey("quick_note")
+        val NOTES = stringPreferencesKey("notes")
+        val TASKS = stringPreferencesKey("tasks")
+        val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
+        val SEARCH_NOTES = booleanPreferencesKey("search_notes_tasks")
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         /** Legacy on/off for swipe down; read only when the swipe-down gesture was never set. */
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
@@ -164,7 +173,27 @@ class SettingsRepository @Inject constructor(
         p[Keys.APP_LABELS] = labels.encodeLabels()
     }
 
-    suspend fun setQuickNote(text: String) = store.edit { it[Keys.QUICK_NOTE] = text }
+    /** Saves note [id] with [text] (blank deletes it), as the most recently edited note. */
+    suspend fun saveNote(id: String, text: String, now: Long = System.currentTimeMillis()) =
+        editNotes { Notes.save(it, id, text, now) }
+
+    suspend fun deleteNote(id: String) = editNotes { Notes.delete(it, id) }
+
+    private suspend fun editNotes(change: (List<Note>) -> List<Note>) = store.edit { p ->
+        p[Keys.NOTES] = encodeNotes(change(p.notes()))
+        p.remove(Keys.QUICK_NOTE)
+    }
+
+    /** Applies [change] to the task list atomically. */
+    suspend fun editTasks(change: (List<TaskItem>) -> List<TaskItem>) = store.edit { p ->
+        p[Keys.TASKS] = encodeTasks(change(decodeTasks(p[Keys.TASKS])))
+    }
+
+    suspend fun setSearchContacts(enabled: Boolean) = store.edit { it[Keys.SEARCH_CONTACTS] = enabled }
+
+    suspend fun setSearchNotesAndTasks(enabled: Boolean) = store.edit { it[Keys.SEARCH_NOTES] = enabled }
+
+    suspend fun clearRecents() = store.edit { it.remove(Keys.RECENTS) }
 
     suspend fun setUse24Hour(value: Boolean?) = store.edit { p ->
         if (value == null) p.remove(Keys.USE_24_HOUR) else p[Keys.USE_24_HOUR] = value.toString()
@@ -222,7 +251,10 @@ class SettingsRepository @Inject constructor(
             put("notificationDots", s.notificationDots)
             put("hiddenGoveeDevices", JSONArray(s.hiddenGoveeDevices.toList()))
             put("goveeDeviceOrder", JSONArray(s.goveeDeviceOrder))
-            put("quickNote", s.quickNote)
+            put("notes", JSONArray(encodeNotes(s.notes)))
+            put("tasks", JSONArray(encodeTasks(s.tasks)))
+            put("searchContacts", s.searchContacts)
+            put("searchNotesAndTasks", s.searchNotesAndTasks)
             put("hiddenApps", JSONArray(s.hiddenApps.toList()))
             put("appLabels", JSONObject(s.appLabels))
             put("wallpaperDim", s.wallpaperDim)
@@ -262,7 +294,18 @@ class SettingsRepository @Inject constructor(
             o.optJSONArray("goveeDeviceOrder")?.let { p[Keys.GOVEE_ORDER] = it.strings().encodeList() }
             o.optJSONArray("hiddenGoveeDevices")?.let { p[Keys.HIDDEN_GOVEE] = it.strings().encodeList() }
             if (o.has("notificationDots")) p[Keys.NOTIFICATION_DOTS] = o.getBoolean("notificationDots")
-            if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
+            val notes = o.optJSONArray("notes")
+            if (notes != null) {
+                p[Keys.NOTES] = encodeNotes(decodeNotes(notes.toString()))
+                p.remove(Keys.QUICK_NOTE)
+            } else if (o.has("quickNote")) {
+                // Backups from before there were several notes.
+                p[Keys.NOTES] = encodeNotes(legacyNote(o.getString("quickNote")))
+                p.remove(Keys.QUICK_NOTE)
+            }
+            o.optJSONArray("tasks")?.let { p[Keys.TASKS] = encodeTasks(decodeTasks(it.toString())) }
+            if (o.has("searchContacts")) p[Keys.SEARCH_CONTACTS] = o.getBoolean("searchContacts")
+            if (o.has("searchNotesAndTasks")) p[Keys.SEARCH_NOTES] = o.getBoolean("searchNotesAndTasks")
             o.optJSONArray("hiddenApps")?.let { p[Keys.HIDDEN_APPS] = it.strings().encodeList() }
             o.optJSONObject("appLabels")?.let { labels ->
                 p[Keys.APP_LABELS] = labels.keys().asSequence()
@@ -292,7 +335,10 @@ class SettingsRepository @Inject constructor(
         launchCounts = this[Keys.LAUNCH_COUNTS].decodeCounts(),
         hiddenApps = this[Keys.HIDDEN_APPS].decodeList().toSet(),
         appLabels = this[Keys.APP_LABELS].decodeLabels(),
-        quickNote = this[Keys.QUICK_NOTE].orEmpty(),
+        notes = notes(),
+        tasks = decodeTasks(this[Keys.TASKS]),
+        searchContacts = this[Keys.SEARCH_CONTACTS] ?: false,
+        searchNotesAndTasks = this[Keys.SEARCH_NOTES] ?: true,
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
         gestures = gestures(),
         gestureEdgeGuard = this[Keys.GESTURE_EDGE_GUARD] ?: true,
@@ -304,6 +350,10 @@ class SettingsRepository @Inject constructor(
         weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),
         useFahrenheit = this[Keys.USE_FAHRENHEIT]?.toBooleanStrictOrNull(),
     )
+
+    /** Saved notes, or the old single quick note if notes were never saved. */
+    private fun Preferences.notes(): List<Note> =
+        this[Keys.NOTES]?.let(::decodeNotes) ?: legacyNote(this[Keys.QUICK_NOTE].orEmpty())
 
     private fun Preferences.gestures(): Map<HomeGesture, String> = buildMap {
         HomeGesture.entries.forEach { g -> this@gestures[Keys.gesture(g)]?.let { put(g, it) } }
@@ -325,6 +375,7 @@ class SettingsRepository @Inject constructor(
             .filter { it != PageId.Home }
             .toSet()
 
+    private fun MutablePreferences.notes(): List<Note> = (this as Preferences).notes()
     private fun MutablePreferences.pageOrder(): List<PageId> = (this as Preferences).pageOrder()
     private fun MutablePreferences.hiddenPages(): Set<PageId> = (this as Preferences).hiddenPages()
 }
@@ -364,3 +415,44 @@ private fun String?.decodePlace(): Place? {
 }
 
 private fun JSONArray.strings(): List<String> = (0 until length()).map { getString(it) }
+
+private const val LEGACY_NOTE_ID = "quick-note"
+
+private fun legacyNote(text: String): List<Note> =
+    if (text.isBlank()) emptyList() else listOf(Note(LEGACY_NOTE_ID, text, 0L))
+
+internal fun encodeNotes(notes: List<Note>): String = JSONArray().apply {
+    notes.forEach { put(JSONObject().put("id", it.id).put("text", it.text).put("updatedAt", it.updatedAt)) }
+}.toString()
+
+internal fun decodeNotes(json: String?): List<Note> = decodeObjects(json) { o ->
+    val id = o.optString("id").ifEmpty { return@decodeObjects null }
+    val text = o.optString("text").ifBlank { return@decodeObjects null }
+    Note(id, text, o.optLong("updatedAt"))
+}.distinctBy { it.id }.sortedByDescending { it.updatedAt }
+
+internal fun encodeTasks(tasks: List<TaskItem>): String = JSONArray().apply {
+    tasks.forEach { t ->
+        put(JSONObject().apply {
+            put("id", t.id)
+            put("title", t.title)
+            put("done", t.done)
+            put("createdAt", t.createdAt)
+            t.doneAt?.let { put("doneAt", it) }
+        })
+    }
+}.toString()
+
+internal fun decodeTasks(json: String?): List<TaskItem> = decodeObjects(json) { o ->
+    val id = o.optString("id").ifEmpty { return@decodeObjects null }
+    val title = Tasks.clean(o.optString("title")).ifEmpty { return@decodeObjects null }
+    TaskItem(id, title, o.optBoolean("done"), o.optLong("createdAt"), if (o.has("doneAt")) o.optLong("doneAt") else null)
+}.distinctBy { it.id }
+
+private fun <T> decodeObjects(json: String?, read: (JSONObject) -> T?): List<T> {
+    if (json.isNullOrBlank()) return emptyList()
+    return runCatching {
+        val array = JSONArray(json)
+        (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let(read) }
+    }.getOrDefault(emptyList())
+}

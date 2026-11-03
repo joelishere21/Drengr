@@ -18,6 +18,7 @@ import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.integrations.applications.AppRepository
 import com.drengr.launcher.integrations.notifications.NotificationRepository
 import com.drengr.launcher.plugins.ActionRegistry
+import com.drengr.launcher.feature.notes.NoteEditorController
 import com.drengr.launcher.plugins.LauncherAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -53,6 +54,7 @@ class LauncherViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     notifications: NotificationRepository,
     val actions: ActionRegistry,
+    val noteEditor: NoteEditorController,
 ) : ViewModel(), AppInteractions {
 
     /** [AppInfo.notificationKey]s of apps with notifications, or empty when dots are off. */

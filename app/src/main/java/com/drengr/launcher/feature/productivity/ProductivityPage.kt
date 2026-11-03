@@ -125,31 +125,9 @@ class ProductivityViewModel @Inject constructor(
         }
     }
 
-    private val _note = MutableStateFlow("")
-    val note: StateFlow<String> = _note.asStateFlow()
-    private var saveJob: Job? = null
-    private var loaded = false
-
     fun quickActions(context: android.content.Context): List<LauncherAction> =
         registry.available(context).filter { it.category == ActionCategory.Productivity }
 
-    init {
-        viewModelScope.launch {
-            _note.value = settings.current().quickNote
-            loaded = true
-        }
-    }
-
-    /** Debounced so typing doesn't write to disk on every keystroke. */
-    fun updateNote(text: String) {
-        if (!loaded) return
-        _note.value = text
-        saveJob?.cancel()
-        saveJob = viewModelScope.launch {
-            delay(400)
-            settings.setQuickNote(text)
-        }
-    }
 }
 
 @Composable
@@ -159,7 +137,9 @@ fun ProductivityPage(
     viewModel: ProductivityViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val note by viewModel.note.collectAsStateWithLifecycle()
+    val notesAndTasks: NotesAndTasksViewModel = hiltViewModel()
+    val notes by notesAndTasks.notes.collectAsStateWithLifecycle()
+    val tasks by notesAndTasks.tasks.collectAsStateWithLifecycle()
     val actions = viewModel.quickActions(context)
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE · MMM d"))
     val agenda by viewModel.agenda.collectAsStateWithLifecycle()
@@ -192,7 +172,7 @@ fun ProductivityPage(
         PageHeader("Productivity", subtitle = today, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
-        // Wide windows: the week on the left, note and actions beside it.
+        // Wide windows: the week and tasks on the left, notes and actions beside it.
         TwoColumns(
             stackedGap = 12.dp,
             first = {
@@ -206,34 +186,11 @@ fun ProductivityPage(
                             .onFailure { navigator.runActionById("calendar") }
                     },
                 )
+                Spacer(Modifier.height(12.dp))
+                TasksCard(tasks, notesAndTasks)
             },
             second = {
-                DrengrCard(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Quick note", style = DrengrTheme.typography.title, modifier = Modifier.weight(1f))
-                        Pill("Saved on device")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    BasicTextField(
-                        value = note,
-                        onValueChange = viewModel::updateNote,
-                        textStyle = DrengrTheme.typography.body.copy(color = DrengrTheme.colors.textPrimary),
-                        cursorBrush = SolidColor(DrengrTheme.colors.accent),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 120.dp),
-                        decorationBox = { inner ->
-                            if (note.isEmpty()) {
-                                Text(
-                                    "Write something down…",
-                                    style = DrengrTheme.typography.body,
-                                    color = DrengrTheme.colors.textSecondary,
-                                )
-                            }
-                            inner()
-                        },
-                    )
-                }
+                NotesCard(notes, onOpen = notesAndTasks::openNote, onNew = notesAndTasks::newNote)
 
                 Spacer(Modifier.height(20.dp))
                 SectionHeader("Quick actions")
