@@ -10,14 +10,16 @@ The full product spec is in `Quadro_Android_Launcher_Project_Plan.pdf`.
 |---|---|
 | Installable APK, selectable as the default Home app | ✅ HOME intent filter + RoleManager prompt in Settings |
 | Five swipeable pages with a page indicator | ✅ Home · Applications · Productivity · System · Media |
-| Working Home screen and persistent dock | ✅ Clock, date, next alarm, status, glance cards, favorites; dock with 4 apps + Apps + Command Center |
+| Working Home screen and persistent dock | ✅ Clock, date, next alarm, glance cards, favorites over your wallpaper; dock with 4 apps + Apps + Command Center |
 | App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts |
 | Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
 | Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe down on Home), ~30 built-in actions |
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
 | Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
 
-Not done yet (later milestones): calendar/weather/media-session integrations, Android widget hosting, wallpaper support, tablet layouts, configurable gesture zones.
+Not done yet (later milestones): calendar/weather/media-session integrations, Android widget hosting, tablet layouts, configurable gesture zones.
+
+**Wallpaper:** the system wallpaper shows behind every page. Settings → Appearance has "Change wallpaper" and a dimming slider (0–100 %, default 40 %; 100 % gives the original solid background). Scrolling wallpapers follow the pager.
 
 ## Gestures
 

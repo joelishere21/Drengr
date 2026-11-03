@@ -48,6 +48,7 @@ class SettingsRepository @Inject constructor(
         val QUICK_NOTE = stringPreferencesKey("quick_note")
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         val SWIPE_DOWN_CC = booleanPreferencesKey("swipe_down_command_center")
+        val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
     }
 
     val settings: Flow<UserSettings> = store.data
@@ -125,6 +126,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setSwipeDownForCommandCenter(enabled: Boolean) =
         store.edit { it[Keys.SWIPE_DOWN_CC] = enabled }
 
+    suspend fun setWallpaperDim(percent: Int) = store.edit { it[Keys.WALLPAPER_DIM] = percent.coerceIn(0, 100) }
+
     // ---- Backup / restore -------------------------------------------------------------------
 
     suspend fun exportJson(): String {
@@ -142,6 +145,7 @@ class SettingsRepository @Inject constructor(
             s.use24Hour?.let { put("use24Hour", it) }
             put("swipeDownForCommandCenter", s.swipeDownForCommandCenter)
             put("quickNote", s.quickNote)
+            put("wallpaperDim", s.wallpaperDim)
         }.toString(2)
     }
 
@@ -162,6 +166,7 @@ class SettingsRepository @Inject constructor(
                 p[Keys.SWIPE_DOWN_CC] = o.getBoolean("swipeDownForCommandCenter")
             }
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
+            if (o.has("wallpaperDim")) p[Keys.WALLPAPER_DIM] = o.getInt("wallpaperDim").coerceIn(0, 100)
         }
     }
 
@@ -181,6 +186,7 @@ class SettingsRepository @Inject constructor(
         quickNote = this[Keys.QUICK_NOTE].orEmpty(),
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
         swipeDownForCommandCenter = this[Keys.SWIPE_DOWN_CC] ?: true,
+        wallpaperDim = this[Keys.WALLPAPER_DIM] ?: UserSettings.DEFAULT_WALLPAPER_DIM,
     )
 
     /** Saved order, with unknown names dropped and any new pages appended. */

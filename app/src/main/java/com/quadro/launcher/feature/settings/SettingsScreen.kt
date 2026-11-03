@@ -32,12 +32,17 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +60,7 @@ import com.quadro.launcher.core.domain.AppLayout
 import com.quadro.launcher.core.domain.PageId
 import com.quadro.launcher.core.domain.UserSettings
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack: () -> Unit) {
@@ -183,6 +189,14 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                 }
             }
 
+            item {
+                WallpaperCard(
+                    dim = settings.wallpaperDim,
+                    onDimChange = viewModel::setWallpaperDim,
+                    onChangeWallpaper = viewModel::changeWallpaper,
+                )
+            }
+
             item { SectionHeader("Pages", Modifier.padding(top = 8.dp)) }
             item {
                 QuadroCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 12.dp)) {
@@ -238,6 +252,40 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
             }
             item { Spacer(Modifier.height(24.dp)) }
         }
+    }
+}
+
+@Composable
+private fun WallpaperCard(dim: Int, onDimChange: (Int) -> Unit, onChangeWallpaper: () -> Unit) {
+    val colors = QuadroTheme.colors
+    // Track the drag locally and save once the finger lifts, instead of on every frame.
+    var dragValue by remember(dim) { mutableFloatStateOf(dim.toFloat()) }
+    QuadroCard(Modifier.fillMaxWidth()) {
+        ClickRow("Change wallpaper", "Opens the system wallpaper picker", onChangeWallpaper)
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Wallpaper dimming", style = QuadroTheme.typography.body, modifier = Modifier.weight(1f))
+            Text("${dragValue.roundToInt()}%", style = QuadroTheme.typography.mono, color = colors.textSecondary)
+        }
+        Slider(
+            value = dragValue,
+            onValueChange = { dragValue = it },
+            onValueChangeFinished = { onDimChange(dragValue.roundToInt()) },
+            valueRange = 0f..100f,
+            steps = 9,
+            colors = SliderDefaults.colors(
+                thumbColor = colors.accent,
+                activeTrackColor = colors.accent,
+                inactiveTrackColor = colors.surfaceElevated,
+                activeTickColor = colors.onAccent,
+                inactiveTickColor = colors.divider,
+            ),
+        )
+        Text(
+            "Darkens the wallpaper so text stays readable. 100% hides it.",
+            style = QuadroTheme.typography.caption,
+            color = colors.textSecondary,
+        )
     }
 }
 

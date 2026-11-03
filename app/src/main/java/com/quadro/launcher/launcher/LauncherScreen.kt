@@ -1,5 +1,6 @@
 package com.quadro.launcher.launcher
 
+import android.app.WallpaperManager
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -24,6 +25,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import com.quadro.launcher.core.designsystem.QuadroTheme
 import com.quadro.launcher.core.domain.AppInfo
 import com.quadro.launcher.core.domain.PageId
@@ -62,7 +64,7 @@ fun LauncherScreen(
 ) {
     // Wait for persisted settings so the pager opens on the saved page without a jump.
     if (!state.settingsLoaded) {
-        Box(Modifier.fillMaxSize().background(QuadroTheme.colors.background))
+        Box(Modifier.fillMaxSize())
         return
     }
 
@@ -119,6 +121,18 @@ fun LauncherScreen(
         }
     }
 
+    // Let scrolling wallpapers follow the pager, as other launchers do.
+    val view = LocalView.current
+    LaunchedEffect(pagerState, pages.size) {
+        val wallpaper = WallpaperManager.getInstance(context)
+        val lastIndex = (pages.size - 1).coerceAtLeast(1)
+        wallpaper.setWallpaperOffsetSteps(1f / lastIndex, 1f)
+        snapshotFlow { pagerState.currentPage + pagerState.currentPageOffsetFraction }.collect { position ->
+            val token = view.windowToken ?: return@collect
+            wallpaper.setWallpaperOffsets(token, (position / lastIndex).coerceIn(0f, 1f), 0.5f)
+        }
+    }
+
     // Back never leaves the launcher; it returns to Home.
     BackHandler(enabled = !commandCenterOpen) { goTo(PageId.Home) }
 
@@ -129,7 +143,8 @@ fun LauncherScreen(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(QuadroTheme.colors.background),
+                // Dimming layer over the system wallpaper (100 % = solid background).
+                .background(QuadroTheme.colors.background.copy(alpha = state.settings.wallpaperDim / 100f)),
         ) {
             Column(Modifier.fillMaxSize().systemBarsPadding()) {
                 HorizontalPager(

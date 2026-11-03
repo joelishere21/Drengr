@@ -64,6 +64,8 @@ data class UserSettings(
     /** null = follow the system 12/24-hour setting. */
     val use24Hour: Boolean? = null,
     val swipeDownForCommandCenter: Boolean = true,
+    /** How strongly the launcher darkens the system wallpaper, 0–100 %. 100 hides it completely. */
+    val wallpaperDim: Int = DEFAULT_WALLPAPER_DIM,
 ) {
     /** Ordered, visible pages. Home can never be hidden. */
     val visiblePages: List<PageId>
@@ -72,5 +74,6 @@ data class UserSettings(
     companion object {
         const val MAX_DOCK_APPS = 4
         const val MAX_RECENTS = 10
+        const val DEFAULT_WALLPAPER_DIM = 40
     }
 }

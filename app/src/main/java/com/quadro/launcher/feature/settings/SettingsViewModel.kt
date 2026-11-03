@@ -51,6 +51,14 @@ class SettingsViewModel @Inject constructor(
     fun setColumns(columns: Int) = launch { repository.setGridColumns(columns) }
     fun setUse24Hour(value: Boolean?) = launch { repository.setUse24Hour(value) }
     fun setSwipeDown(enabled: Boolean) = launch { repository.setSwipeDownForCommandCenter(enabled) }
+    fun setWallpaperDim(percent: Int) = launch { repository.setWallpaperDim(percent) }
+
+    fun changeWallpaper() {
+        val chooser = Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Set wallpaper")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(chooser) }
+            .onFailure { viewModelScope.launch { _messages.emit("No wallpaper picker found") } }
+    }
     fun movePage(page: PageId, delta: Int) = launch { repository.movePage(page, delta) }
     fun setPageHidden(page: PageId, hidden: Boolean) = launch { repository.setPageHidden(page, hidden) }
 

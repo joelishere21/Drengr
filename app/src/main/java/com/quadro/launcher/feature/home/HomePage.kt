@@ -20,15 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
-import androidx.compose.material.icons.outlined.BatteryChargingFull
-import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.SettingsEthernet
-import androidx.compose.material.icons.outlined.SignalCellularAlt
-import androidx.compose.material.icons.outlined.SignalWifiOff
-import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,16 +36,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quadro.launcher.core.designsystem.IconBadge
 import com.quadro.launcher.core.designsystem.QuadroCard
 import com.quadro.launcher.core.designsystem.QuadroTheme
 import com.quadro.launcher.core.designsystem.SectionHeader
+import com.quadro.launcher.core.designsystem.onWallpaper
 import com.quadro.launcher.core.domain.PageId
-import com.quadro.launcher.integrations.battery.BatteryState
-import com.quadro.launcher.integrations.connectivity.NetworkState
-import com.quadro.launcher.integrations.connectivity.NetworkType
 import com.quadro.launcher.launcher.LauncherNavigator
 import com.quadro.launcher.launcher.LauncherUiState
 import com.quadro.launcher.launcher.components.AppItem
@@ -71,11 +60,8 @@ private const val FAVORITE_MAX = 12
 fun HomePage(
     state: LauncherUiState,
     navigator: LauncherNavigator,
-    viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val battery by viewModel.battery.collectAsStateWithLifecycle()
-    val network by viewModel.network.collectAsStateWithLifecycle()
     val now by rememberCurrentTime()
     val swipeDownEnabled by rememberUpdatedState(state.settings.swipeDownForCommandCenter)
     val threshold = with(LocalDensity.current) { 96.dp.toPx() }
@@ -107,8 +93,7 @@ fun HomePage(
             .pointerInput(Unit) { detectTapGestures(onLongPress = { navigator.openSettings() }) }
             .padding(horizontal = QuadroTheme.spacing.pageHorizontal),
     ) {
-        StatusRow(battery, network, Modifier.padding(top = 12.dp))
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(48.dp))
 
         // Clock: tap opens the alarm app.
         Column(
@@ -118,17 +103,17 @@ fun HomePage(
                 }
             },
         ) {
-            Text(now.format(timeFormat), style = QuadroTheme.typography.clock)
+            Text(now.format(timeFormat), style = QuadroTheme.typography.clock.onWallpaper())
             Text(
                 now.format(dateFormat),
-                style = QuadroTheme.typography.title,
+                style = QuadroTheme.typography.title.onWallpaper(),
                 color = QuadroTheme.colors.textSecondary,
             )
             if (nextAlarm != null) {
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Alarm, null, tint = QuadroTheme.colors.accent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(nextAlarm, style = QuadroTheme.typography.mono, color = QuadroTheme.colors.accent)
+                    Text(nextAlarm, style = QuadroTheme.typography.mono.onWallpaper(), color = QuadroTheme.colors.accent)
                 }
             }
         }
@@ -175,24 +160,6 @@ fun HomePage(
 }
 
 @Composable
-private fun StatusRow(battery: BatteryState, network: NetworkState, modifier: Modifier = Modifier) {
-    val colors = QuadroTheme.colors
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("QUADRO", style = QuadroTheme.typography.label, color = colors.accent, modifier = Modifier.weight(1f))
-        Icon(network.icon(), contentDescription = network.type.label, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(12.dp))
-        Icon(
-            if (battery.isCharging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
-            contentDescription = null,
-            tint = if (battery.level <= 15 && !battery.isCharging) colors.accent else colors.textSecondary,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(Modifier.width(4.dp))
-        Text("${battery.level}%", style = QuadroTheme.typography.mono, color = colors.textSecondary)
-    }
-}
-
-@Composable
 private fun GlanceCard(
     icon: ImageVector,
     title: String,
@@ -212,15 +179,6 @@ private fun GlanceCard(
             overflow = TextOverflow.Ellipsis,
         )
     }
-}
-
-fun NetworkState.icon(): ImageVector = when (type) {
-    NetworkType.Wifi -> Icons.Outlined.Wifi
-    NetworkType.Cellular -> Icons.Outlined.SignalCellularAlt
-    NetworkType.Ethernet -> Icons.Outlined.SettingsEthernet
-    NetworkType.Vpn -> Icons.Outlined.VpnKey
-    NetworkType.Other -> Icons.Outlined.Wifi
-    NetworkType.None -> Icons.Outlined.SignalWifiOff
 }
 
 private fun nextAlarmText(context: android.content.Context, use24h: Boolean): String? {

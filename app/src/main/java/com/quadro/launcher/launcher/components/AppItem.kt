@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.quadro.launcher.core.designsystem.QuadroTheme
+import com.quadro.launcher.core.designsystem.onWallpaper
 import com.quadro.launcher.core.domain.AppInfo
 import com.quadro.launcher.launcher.LocalAppInteractions
 import com.quadro.launcher.launcher.LocalAppMembership
@@ -106,7 +107,7 @@ fun AppItem(
                 Spacer(Modifier.height(6.dp))
                 Text(
                     app.label,
-                    style = QuadroTheme.typography.caption,
+                    style = QuadroTheme.typography.caption.onWallpaper(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,

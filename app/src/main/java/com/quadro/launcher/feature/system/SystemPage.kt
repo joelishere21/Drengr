@@ -16,6 +16,11 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.VpnKey
+import androidx.compose.material.icons.outlined.SignalWifiOff
+import androidx.compose.material.icons.outlined.SignalCellularAlt
+import androidx.compose.material.icons.outlined.SettingsEthernet
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +41,6 @@ import com.quadro.launcher.core.designsystem.QuadroCard
 import com.quadro.launcher.core.designsystem.QuadroTheme
 import com.quadro.launcher.core.designsystem.SectionHeader
 import com.quadro.launcher.feature.common.ActionRow
-import com.quadro.launcher.feature.home.icon
 import com.quadro.launcher.integrations.battery.BatteryRepository
 import com.quadro.launcher.integrations.battery.BatteryState
 import com.quadro.launcher.integrations.connectivity.ConnectivityRepository
@@ -209,4 +213,13 @@ private fun StatusCard(
             )
         }
     }
+}
+
+private fun NetworkState.icon(): ImageVector = when (type) {
+    NetworkType.Wifi -> Icons.Outlined.Wifi
+    NetworkType.Cellular -> Icons.Outlined.SignalCellularAlt
+    NetworkType.Ethernet -> Icons.Outlined.SettingsEthernet
+    NetworkType.Vpn -> Icons.Outlined.VpnKey
+    NetworkType.Other -> Icons.Outlined.Wifi
+    NetworkType.None -> Icons.Outlined.SignalWifiOff
 }

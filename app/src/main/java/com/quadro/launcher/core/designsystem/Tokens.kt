@@ -2,6 +2,9 @@ package com.quadro.launcher.core.designsystem
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -59,3 +62,7 @@ data class QuadroTypography(
         fontSize = 22.sp,
     ),
 )
+
+/** Soft shadow that keeps text readable when it sits directly on a bright wallpaper. */
+fun TextStyle.onWallpaper(): TextStyle =
+    copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.6f), offset = Offset(0f, 2f), blurRadius = 8f))
