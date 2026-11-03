@@ -54,6 +54,7 @@ class SettingsRepository @Inject constructor(
         val QUICK_NOTE = stringPreferencesKey("quick_note")
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
+        val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
         val WEATHER_ENABLED = booleanPreferencesKey("weather_enabled")
         val WEATHER_PLACE = stringPreferencesKey("weather_place")
@@ -149,6 +150,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setSwipeDownForNotifications(enabled: Boolean) =
         store.edit { it[Keys.SWIPE_DOWN_SHADE] = enabled }
 
+    suspend fun setNotificationDots(enabled: Boolean) = store.edit { it[Keys.NOTIFICATION_DOTS] = enabled }
+
     suspend fun setWeatherEnabled(enabled: Boolean) = store.edit { it[Keys.WEATHER_ENABLED] = enabled }
 
     suspend fun setWeatherPlace(place: Place?) = store.edit { p ->
@@ -177,6 +180,7 @@ class SettingsRepository @Inject constructor(
             put("gridColumns", s.gridColumns)
             s.use24Hour?.let { put("use24Hour", it) }
             put("swipeDownForNotifications", s.swipeDownForNotifications)
+            put("notificationDots", s.notificationDots)
             put("quickNote", s.quickNote)
             put("hiddenApps", JSONArray(s.hiddenApps.toList()))
             put("appLabels", JSONObject(s.appLabels))
@@ -204,6 +208,7 @@ class SettingsRepository @Inject constructor(
             if (o.has("swipeDownForNotifications")) {
                 p[Keys.SWIPE_DOWN_SHADE] = o.getBoolean("swipeDownForNotifications")
             }
+            if (o.has("notificationDots")) p[Keys.NOTIFICATION_DOTS] = o.getBoolean("notificationDots")
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
             o.optJSONArray("hiddenApps")?.let { p[Keys.HIDDEN_APPS] = it.strings().encodeList() }
             o.optJSONObject("appLabels")?.let { labels ->
@@ -237,6 +242,7 @@ class SettingsRepository @Inject constructor(
         quickNote = this[Keys.QUICK_NOTE].orEmpty(),
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
         swipeDownForNotifications = this[Keys.SWIPE_DOWN_SHADE] ?: true,
+        notificationDots = this[Keys.NOTIFICATION_DOTS] ?: true,
         wallpaperDim = this[Keys.WALLPAPER_DIM] ?: UserSettings.DEFAULT_WALLPAPER_DIM,
         weatherEnabled = this[Keys.WEATHER_ENABLED] ?: true,
         weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),

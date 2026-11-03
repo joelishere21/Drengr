@@ -15,7 +15,7 @@
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
 | Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
 
-Not done yet (later milestones): media-session integration, Android widget hosting, tablet layouts, configurable gesture zones.
+Not done yet (later milestones): Android widget hosting, tablet layouts, configurable gesture zones.
 
 **Wallpaper:** the system wallpaper shows behind every page. Settings → Appearance has "Change wallpaper" and a dimming slider (0–100 %, default 40 %; 100 % gives the original solid background). Scrolling wallpapers follow the pager.
 
@@ -71,7 +71,9 @@ app/src/main/java/com/drengr/launcher/
 │   └── common/                      FuzzyMatcher
 ├── integrations/                    Android API wrappers
 │   ├── applications/                AppRepository (LauncherApps, icons, shortcuts)
-│   ├── battery/  connectivity/  media/  system/
+│   ├── battery/  connectivity/  system/
+│   ├── media/                       AudioController, MediaSessionRepository (now playing)
+│   ├── notifications/               DrengrNotificationListener, dot counts
 ├── plugins/                         ActionRegistry, LauncherAction, FlashlightController
 ├── launcher/                        LauncherActivity, LauncherScreen (pager), ViewModel, Dock, PageIndicator, AppItem
 └── feature/
@@ -84,7 +86,9 @@ app/src/main/java/com/drengr/launcher/
 APIs sit behind repositories. Command Center actions are trusted, built-in `LauncherAction`s registered in
 `ActionRegistry`, each labeled **Direct** (the launcher does it itself) or **Settings/App** (hands off to
 Android). Runtime permissions (calendar, approximate location) are requested only when the user taps the feature
-that needs them; if Android stops showing the prompt, the next tap opens App info instead.
+that needs them; if Android stops showing the prompt, the next tap opens App info instead. Notification access
+(Settings → Notifications & media, or the Media page) is optional: it powers notification dots and the Media
+page's track, artwork, progress and seeking. Drengr keeps only per-app counts, never notification content.
 
 ## Adding a Command Center action
 

@@ -13,6 +13,7 @@ import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
 import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.integrations.applications.AppRepository
+import com.drengr.launcher.integrations.notifications.NotificationRepository
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.core.domain.Place
 import com.drengr.launcher.integrations.weather.WeatherRepository
@@ -51,7 +52,18 @@ class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val weather: WeatherRepository,
     private val appRepository: AppRepository,
+    private val notifications: NotificationRepository,
 ) : ViewModel() {
+
+    private val _notificationAccess = MutableStateFlow(notifications.hasAccess())
+    val notificationAccess: StateFlow<Boolean> = _notificationAccess.asStateFlow()
+
+    fun refreshNotificationAccess() {
+        _notificationAccess.value = notifications.hasAccess()
+    }
+
+    fun openNotificationAccess() = notifications.openAccessSettings()
+    fun setNotificationDots(enabled: Boolean) = launch { repository.setNotificationDots(enabled) }
 
     val settings: StateFlow<UserSettings> =
         repository.settings.stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())

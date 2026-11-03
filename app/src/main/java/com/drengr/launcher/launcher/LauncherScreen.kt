@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -79,6 +80,7 @@ fun LauncherScreen(
     ) { pages.size }
 
     var commandCenterOpen by rememberSaveable { mutableStateOf(false) }
+    val notificationDots by viewModel.notificationDots.collectAsStateWithLifecycle()
 
     fun goTo(page: PageId) {
         val index = currentPages.indexOf(page)
@@ -139,6 +141,7 @@ fun LauncherScreen(
     CompositionLocalProvider(
         LocalAppInteractions provides viewModel,
         LocalAppMembership provides AppMembership(state.favoriteKeys, state.dockKeys, state.hiddenKeys),
+        LocalNotificationDots provides notificationDots,
     ) {
         Box(
             Modifier

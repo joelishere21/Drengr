@@ -27,7 +27,7 @@ enum class OutputKind { Speaker, Wired, Bluetooth, Usb, Other }
 /**
  * Media controls that work without notification access: media key dispatch goes to the
  * active media session, and volume/output info comes from [AudioManager].
- * Track metadata/artwork (MediaSessionManager) needs a notification listener — Milestone 5.
+ * Track metadata and artwork come from [MediaSessionRepository], which needs notification access.
  */
 @Singleton
 class AudioController @Inject constructor(

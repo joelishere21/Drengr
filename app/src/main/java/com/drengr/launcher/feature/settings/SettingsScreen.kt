@@ -81,9 +81,11 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
     val colors = DrengrTheme.colors
     val isDefaultHome by viewModel.isDefaultHome.collectAsStateWithLifecycle()
     val hiddenApps by viewModel.hiddenApps.collectAsStateWithLifecycle()
+    val notificationAccess by viewModel.notificationAccess.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(Unit) {
         viewModel.refreshDefaultHome()
+        viewModel.refreshNotificationAccess()
         onPauseOrDispose { }
     }
     LaunchedEffect(Unit) {
@@ -241,6 +243,28 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
                         checked = settings.swipeDownForNotifications,
                         onChange = viewModel::setSwipeDown,
                     )
+                }
+            }
+
+            item { SectionHeader("Notifications & media", Modifier.padding(top = 8.dp)) }
+            item {
+                DrengrCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 16.dp)) {
+                    ClickRow(
+                        title = if (notificationAccess) "Notification access: on" else "Allow notification access",
+                        subtitle = if (notificationAccess) {
+                            "Drengr counts notifications per app and reads what's playing. Tap to change."
+                        } else {
+                            "Needed for notification dots and track info on the Media page. Notification content is never stored."
+                        },
+                        onClick = viewModel::openNotificationAccess,
+                    )
+                    SwitchRow(
+                        title = "Notification dots",
+                        subtitle = if (notificationAccess) "A dot on apps with notifications" else "Works once notification access is on",
+                        checked = settings.notificationDots,
+                        onChange = viewModel::setNotificationDots,
+                    )
+                    Spacer(Modifier.height(10.dp))
                 }
             }
 

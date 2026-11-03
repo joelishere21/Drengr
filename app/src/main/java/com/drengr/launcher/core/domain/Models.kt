@@ -40,6 +40,9 @@ data class AppInfo(
     val originalLabel: String = label,
 ) {
     val isRenamed: Boolean get() = label != originalLabel
+
+    /** Package plus profile ("pkg#serial"): notifications belong to an app, not one activity. */
+    val notificationKey: String get() = "$packageName#${key.substringAfterLast('#')}"
 }
 
 @Immutable
@@ -77,6 +80,8 @@ data class UserSettings(
     val use24Hour: Boolean? = null,
     /** Swipe down on Home pulls down the notification shade. */
     val swipeDownForNotifications: Boolean = true,
+    /** Dots on app icons for unread notifications. Needs notification access. */
+    val notificationDots: Boolean = true,
     /** How strongly the launcher darkens the system wallpaper, 0–100 %. 100 hides it completely. */
     val wallpaperDim: Int = DEFAULT_WALLPAPER_DIM,
     val weatherEnabled: Boolean = true,

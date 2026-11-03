@@ -38,3 +38,6 @@ data class AppMembership(
 )
 
 val LocalAppMembership = compositionLocalOf { AppMembership() }
+
+/** [AppInfo.notificationKey]s of apps that should show a notification dot. */
+val LocalNotificationDots = compositionLocalOf { emptySet<String>() }

@@ -15,6 +15,7 @@ import com.drengr.launcher.core.domain.UserSettings
 import com.drengr.launcher.core.domain.normalizeAppLabel
 import com.drengr.launcher.core.domain.withCustomLabels
 import com.drengr.launcher.integrations.applications.AppRepository
+import com.drengr.launcher.integrations.notifications.NotificationRepository
 import com.drengr.launcher.plugins.ActionRegistry
 import com.drengr.launcher.plugins.LauncherAction
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,8 +49,17 @@ data class LauncherUiState(
 class LauncherViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val settingsRepository: SettingsRepository,
+    notifications: NotificationRepository,
     val actions: ActionRegistry,
 ) : ViewModel(), AppInteractions {
+
+    /** [AppInfo.notificationKey]s of apps with notifications, or empty when dots are off. */
+    val notificationDots: StateFlow<Set<String>> = combine(
+        notifications.counts,
+        settingsRepository.settings,
+    ) { counts, settings ->
+        if (settings.notificationDots) counts.filterValues { it > 0 }.keys else emptySet()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages: SharedFlow<String> = _messages

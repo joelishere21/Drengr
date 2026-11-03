@@ -1,5 +1,27 @@
 package com.drengr.launcher.feature.media
 
+import android.os.SystemClock
+import androidx.compose.foundation.Image
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.drengr.launcher.integrations.media.MediaSessionRepository
+import com.drengr.launcher.integrations.media.NowPlaying
+import com.drengr.launcher.integrations.notifications.NotificationRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,9 +88,12 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MediaViewModel @Inject constructor(
     private val audio: AudioController,
+    private val media: MediaSessionRepository,
+    private val notifications: NotificationRepository,
 ) : ViewModel() {
     /** Polled while visible: volume keys and output changes have no permission-free callback. */
     val state: StateFlow<AudioState> = flow {
@@ -78,9 +103,24 @@ class MediaViewModel @Inject constructor(
         }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(1_000), audio.state())
 
-    fun playPause() = audio.playPause()
-    fun next() = audio.next()
-    fun previous() = audio.previous()
+    private val access = MutableStateFlow(notifications.hasAccess())
+    val hasAccess: StateFlow<Boolean> = access.asStateFlow()
+
+    val nowPlaying: StateFlow<NowPlaying?> = access
+        .flatMapLatest { granted -> if (granted) media.nowPlaying() else flowOf(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Access is granted in system settings, so check again whenever the launcher returns. */
+    fun onResume() {
+        access.value = notifications.hasAccess()
+    }
+
+    fun requestAccess() = notifications.openAccessSettings()
+    fun playPause() = media.playPause()
+    fun next() = media.next()
+    fun previous() = media.previous()
+    fun seekTo(positionMs: Long) = media.seekTo(positionMs)
+    fun openPlayer(playing: NowPlaying) = media.openPlayer(playing.packageName)
     fun volume(raise: Boolean) = audio.adjustVolume(raise)
 }
 
@@ -91,8 +131,22 @@ fun MediaPage(
     viewModel: MediaViewModel = hiltViewModel(),
 ) {
     val audio by viewModel.state.collectAsStateWithLifecycle()
+    val hasAccess by viewModel.hasAccess.collectAsStateWithLifecycle()
+    val playing by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val colors = DrengrTheme.colors
     val mediaApps = state.apps.filter { it.category == AppCategory.Media }
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.onResume()
+        onPauseOrDispose { }
+    }
+
+    val current = playing
+    val subtitle = when {
+        current != null -> (if (current.isPlaying) "Playing" else "Paused") + " · " + current.appLabel
+        audio.isMusicActive -> "Playing"
+        else -> "Idle"
+    }
 
     Column(
         Modifier
@@ -100,35 +154,20 @@ fun MediaPage(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = DrengrTheme.spacing.pageHorizontal),
     ) {
-        PageHeader("Media", subtitle = if (audio.isMusicActive) "Playing" else "Idle", modifier = Modifier.padding(top = 12.dp))
+        PageHeader("Media", subtitle = subtitle, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
         DrengrCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(72.dp)
-                        .aspectRatio(1f)
-                        .clip(DrengrTheme.shapes.medium)
-                        .background(colors.accentSoft),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Outlined.MusicNote, null, tint = colors.accent, modifier = Modifier.size(36.dp))
-                }
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Now playing", style = DrengrTheme.typography.title)
-                    Text(
-                        if (audio.isMusicActive) "Audio is playing" else "Nothing playing",
-                        style = DrengrTheme.typography.body,
-                        color = colors.textSecondary,
-                    )
-                    Text(
-                        "Track details & artwork arrive with media-session integration.",
-                        style = DrengrTheme.typography.caption,
-                        color = colors.textSecondary,
-                    )
-                }
+            if (current != null) {
+                TrackInfo(current, onOpen = { viewModel.openPlayer(current) })
+                Spacer(Modifier.height(14.dp))
+                PlaybackProgress(current, onSeek = viewModel::seekTo)
+            } else {
+                IdleInfo(
+                    audioActive = audio.isMusicActive,
+                    hasAccess = hasAccess,
+                    onRequestAccess = viewModel::requestAccess,
+                )
             }
             Spacer(Modifier.height(16.dp))
             Row(
@@ -136,15 +175,22 @@ fun MediaPage(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                RoundButton(Icons.Outlined.SkipPrevious, "Previous", 52.dp, viewModel::previous)
                 RoundButton(
-                    if (audio.isMusicActive) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    "Play or pause",
+                    Icons.Outlined.SkipPrevious, "Previous", 52.dp, viewModel::previous,
+                    enabled = current?.canSkipPrevious ?: true,
+                )
+                val isPlaying = current?.isPlaying ?: audio.isMusicActive
+                RoundButton(
+                    if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                    if (isPlaying) "Pause" else "Play",
                     68.dp,
                     viewModel::playPause,
                     primary = true,
                 )
-                RoundButton(Icons.Outlined.SkipNext, "Next", 52.dp, viewModel::next)
+                RoundButton(
+                    Icons.Outlined.SkipNext, "Next", 52.dp, viewModel::next,
+                    enabled = current?.canSkipNext ?: true,
+                )
             }
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -191,6 +237,139 @@ fun MediaPage(
     }
 }
 
+/** Artwork, title and artist. Tapping opens the app that is playing. */
+@Composable
+private fun TrackInfo(playing: NowPlaying, onOpen: () -> Unit) {
+    val colors = DrengrTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(DrengrTheme.shapes.medium)
+            .clickable(onClickLabel = "Open ${playing.appLabel}", onClick = onOpen),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Artwork(playing.art, 88.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                playing.title ?: "Playing in ${playing.appLabel}",
+                style = DrengrTheme.typography.title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val byline = listOfNotNull(playing.artist, playing.album).joinToString(" · ")
+            if (byline.isNotEmpty()) {
+                Text(
+                    byline,
+                    style = DrengrTheme.typography.body,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(playing.appLabel, style = DrengrTheme.typography.caption, color = colors.accent, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun Artwork(art: ImageBitmap?, size: Dp) {
+    val colors = DrengrTheme.colors
+    Box(
+        Modifier
+            .size(size)
+            .clip(DrengrTheme.shapes.medium)
+            .background(colors.accentSoft),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (art != null) {
+            Image(art, contentDescription = "Artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Icon(Icons.Outlined.MusicNote, null, tint = colors.accent, modifier = Modifier.size(size * 0.45f))
+        }
+    }
+}
+
+/** Elapsed / total time, with a seek bar when the app allows seeking. */
+@Composable
+private fun PlaybackProgress(playing: NowPlaying, onSeek: (Long) -> Unit) {
+    if (playing.durationMs <= 0) return
+    val colors = DrengrTheme.colors
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(playing.isPlaying, playing.positionUpdatedAt) {
+        now = SystemClock.elapsedRealtime()
+        while (playing.isPlaying) {
+            delay(500)
+            now = SystemClock.elapsedRealtime()
+        }
+    }
+    // While dragging, show the drag position instead of the live one.
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val fraction = dragging ?: (playing.positionAt(now).toFloat() / playing.durationMs)
+    val position = (fraction * playing.durationMs).toLong()
+
+    if (playing.canSeek) {
+        Slider(
+            value = fraction.coerceIn(0f, 1f),
+            onValueChange = { dragging = it },
+            onValueChangeFinished = {
+                dragging?.let { onSeek((it * playing.durationMs).toLong()) }
+                dragging = null
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = colors.accent,
+                activeTrackColor = colors.accent,
+                inactiveTrackColor = colors.divider,
+            ),
+            modifier = Modifier.height(28.dp),
+        )
+    } else {
+        LinearProgressIndicator(
+            progress = { fraction.coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            color = colors.accent,
+            trackColor = colors.divider,
+            strokeCap = StrokeCap.Round,
+            gapSize = 0.dp,
+            drawStopIndicator = {},
+        )
+    }
+    Row(Modifier.fillMaxWidth()) {
+        Text(NowPlaying.formatTime(position), style = DrengrTheme.typography.mono, color = colors.textSecondary)
+        Spacer(Modifier.weight(1f))
+        Text(NowPlaying.formatTime(playing.durationMs), style = DrengrTheme.typography.mono, color = colors.textSecondary)
+    }
+}
+
+@Composable
+private fun IdleInfo(audioActive: Boolean, hasAccess: Boolean, onRequestAccess: () -> Unit) {
+    val colors = DrengrTheme.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Artwork(null, 72.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(if (audioActive) "Audio is playing" else "Nothing playing", style = DrengrTheme.typography.title)
+            Text(
+                if (hasAccess) {
+                    "Start music or a podcast in any app to control it here."
+                } else {
+                    "Allow notification access to see the track, artwork and progress."
+                },
+                style = DrengrTheme.typography.caption,
+                color = colors.textSecondary,
+            )
+        }
+    }
+    if (!hasAccess) {
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onRequestAccess) {
+            Text("Allow notification access", color = colors.accent)
+        }
+    }
+}
+
 @Composable
 private fun RoundButton(
     icon: ImageVector,
@@ -198,6 +377,7 @@ private fun RoundButton(
     size: Dp,
     onClick: () -> Unit,
     primary: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val colors = DrengrTheme.colors
     Box(
@@ -205,13 +385,17 @@ private fun RoundButton(
             .size(size)
             .clip(DrengrTheme.shapes.pill)
             .background(if (primary) colors.accent else colors.surfaceElevated)
-            .clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
+            .clickable(enabled = enabled, onClickLabel = label, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             icon,
             contentDescription = label,
-            tint = if (primary) colors.onAccent else colors.textPrimary,
+            tint = when {
+                primary -> colors.onAccent
+                enabled -> colors.textPrimary
+                else -> colors.textSecondary.copy(alpha = 0.4f)
+            },
             modifier = Modifier.size(size * 0.5f),
         )
     }
