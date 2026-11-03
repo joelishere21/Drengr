@@ -83,6 +83,8 @@ data class UserSettings(
     val swipeDownForNotifications: Boolean = true,
     /** Dots on app icons for unread notifications. Needs notification access. */
     val notificationDots: Boolean = true,
+    /** Govee device ids left off the Smart home page (and out of "All off"). */
+    val hiddenGoveeDevices: Set<String> = emptySet(),
     /** How strongly the launcher darkens the system wallpaper, 0–100 %. 100 hides it completely. */
     val wallpaperDim: Int = DEFAULT_WALLPAPER_DIM,
     val weatherEnabled: Boolean = true,

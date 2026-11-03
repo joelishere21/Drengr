@@ -55,6 +55,7 @@ class SettingsRepository @Inject constructor(
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
         val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
         val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
+        val HIDDEN_GOVEE = stringPreferencesKey("hidden_govee_devices")
         /** A credential: kept out of [UserSettings] and never exported. */
         val GOVEE_API_KEY = stringPreferencesKey("govee_api_key")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
@@ -166,6 +167,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setSwipeDownForNotifications(enabled: Boolean) =
         store.edit { it[Keys.SWIPE_DOWN_SHADE] = enabled }
 
+    suspend fun setGoveeDeviceHidden(deviceId: String, hidden: Boolean) = store.edit { p ->
+        val set = p[Keys.HIDDEN_GOVEE].decodeList().toMutableSet()
+        if (hidden) set.add(deviceId) else set.remove(deviceId)
+        p[Keys.HIDDEN_GOVEE] = set.toList().encodeList()
+    }
+
     suspend fun setNotificationDots(enabled: Boolean) = store.edit { it[Keys.NOTIFICATION_DOTS] = enabled }
 
     suspend fun setWeatherEnabled(enabled: Boolean) = store.edit { it[Keys.WEATHER_ENABLED] = enabled }
@@ -197,6 +204,7 @@ class SettingsRepository @Inject constructor(
             s.use24Hour?.let { put("use24Hour", it) }
             put("swipeDownForNotifications", s.swipeDownForNotifications)
             put("notificationDots", s.notificationDots)
+            put("hiddenGoveeDevices", JSONArray(s.hiddenGoveeDevices.toList()))
             put("quickNote", s.quickNote)
             put("hiddenApps", JSONArray(s.hiddenApps.toList()))
             put("appLabels", JSONObject(s.appLabels))
@@ -224,6 +232,7 @@ class SettingsRepository @Inject constructor(
             if (o.has("swipeDownForNotifications")) {
                 p[Keys.SWIPE_DOWN_SHADE] = o.getBoolean("swipeDownForNotifications")
             }
+            o.optJSONArray("hiddenGoveeDevices")?.let { p[Keys.HIDDEN_GOVEE] = it.strings().encodeList() }
             if (o.has("notificationDots")) p[Keys.NOTIFICATION_DOTS] = o.getBoolean("notificationDots")
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
             o.optJSONArray("hiddenApps")?.let { p[Keys.HIDDEN_APPS] = it.strings().encodeList() }
@@ -259,6 +268,7 @@ class SettingsRepository @Inject constructor(
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
         swipeDownForNotifications = this[Keys.SWIPE_DOWN_SHADE] ?: true,
         notificationDots = this[Keys.NOTIFICATION_DOTS] ?: true,
+        hiddenGoveeDevices = this[Keys.HIDDEN_GOVEE].decodeList().toSet(),
         wallpaperDim = this[Keys.WALLPAPER_DIM] ?: UserSettings.DEFAULT_WALLPAPER_DIM,
         weatherEnabled = this[Keys.WEATHER_ENABLED] ?: true,
         weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),

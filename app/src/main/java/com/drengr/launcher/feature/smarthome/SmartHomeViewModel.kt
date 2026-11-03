@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.integrations.govee.GoveeCommand
 import com.drengr.launcher.integrations.govee.GoveeDevice
 import com.drengr.launcher.integrations.govee.GoveeException
@@ -17,6 +18,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -39,7 +43,17 @@ private const val STALE_MS = 60_000L
 @HiltViewModel
 class SmartHomeViewModel @Inject constructor(
     private val govee: GoveeRepository,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
+
+    /** Device ids the user hid from the page. */
+    val hidden: StateFlow<Set<String>> = settings.settings
+        .map { it.hiddenGoveeDevices }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    fun setHidden(device: GoveeDevice, hide: Boolean) = viewModelScope.launch {
+        settings.setGoveeDeviceHidden(device.id, hide)
+    }
 
     private val _ui = MutableStateFlow<SmartHomeUi>(SmartHomeUi.Loading)
     val ui: StateFlow<SmartHomeUi> = _ui.asStateFlow()
@@ -79,7 +93,8 @@ class SmartHomeViewModel @Inject constructor(
 
     fun allOff() {
         val ready = _ui.value as? SmartHomeUi.Ready ?: return
-        updateStates(ready.devices.filter { it.device.canPower }.map { it.device.id }) { it.copy(on = false) }
+        val targets = ready.devices.filter { it.device.canPower && it.device.id !in hidden.value }
+        updateStates(targets.map { it.device.id }) { it.copy(on = false) }
         govee.allOff { message ->
             _messages.tryEmit(message)
             viewModelScope.launch { load(refresh = false) }

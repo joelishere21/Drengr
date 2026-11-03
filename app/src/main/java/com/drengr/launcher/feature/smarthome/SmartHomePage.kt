@@ -30,7 +30,14 @@ import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -95,6 +102,7 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val savingKey by viewModel.savingKey.collectAsStateWithLifecycle()
+    val hidden by viewModel.hidden.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
@@ -105,8 +113,11 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
     }
 
     val state = ui
+    val shown = (state as? SmartHomeUi.Ready)?.devices.orEmpty().filter { it.device.id !in hidden }
+    val hiddenDevices = (state as? SmartHomeUi.Ready)?.devices.orEmpty().filter { it.device.id in hidden }
     val subtitle = when (state) {
-        is SmartHomeUi.Ready -> "Govee · " + state.devices.size + if (state.devices.size == 1) " device" else " devices"
+        is SmartHomeUi.Ready -> "Govee · " + shown.size + (if (shown.size == 1) " device" else " devices") +
+            if (hiddenDevices.isNotEmpty()) " · ${hiddenDevices.size} hidden" else ""
         else -> "Govee"
     }
 
@@ -150,14 +161,31 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
                         )
                     }
                 } else {
-                    if (state.devices.count { it.device.canPower } > 1) {
+                    if (shown.count { it.device.canPower } > 1) {
                         AllOffButton(onClick = viewModel::allOff)
                         Spacer(Modifier.height(12.dp))
                     }
+                    if (shown.isEmpty()) {
+                        Text(
+                            "All your devices are hidden. Show them again below.",
+                            style = DrengrTheme.typography.caption,
+                            color = DrengrTheme.colors.textSecondary,
+                        )
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        state.devices.forEach { item ->
-                            DeviceCard(item, viewModel)
+                        shown.forEach { item ->
+                            DeviceCard(item, viewModel, onHide = { viewModel.setHidden(item.device, true) })
                         }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    if (hiddenDevices.isEmpty()) {
+                        Text(
+                            "Long-press a device to hide it from this page.",
+                            style = DrengrTheme.typography.caption,
+                            color = DrengrTheme.colors.textSecondary,
+                        )
+                    } else {
+                        HiddenDevices(hiddenDevices, onShow = { viewModel.setHidden(it, false) })
                     }
                 }
             }
@@ -189,71 +217,140 @@ private fun AllOffButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun DeviceCard(item: DeviceUi, viewModel: SmartHomeViewModel) {
+private fun DeviceCard(item: DeviceUi, viewModel: SmartHomeViewModel, onHide: () -> Unit) {
     val colors = DrengrTheme.colors
+    val haptics = LocalHapticFeedback.current
     val device = item.device
     val state = item.state
     val offline = state.online == false
     val on = state.on == true
+    var menuOpen by remember { mutableStateOf(false) }
 
-    DrengrCard(Modifier.fillMaxWidth().alpha(if (offline) 0.55f else 1f)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(device.type.icon())
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(device.name, style = DrengrTheme.typography.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    when {
-                        offline -> "Offline"
-                        state.on == null -> device.sku
-                        on && state.brightness != null && device.brightness != null -> "On · ${state.brightness}%"
-                        on -> "On"
-                        else -> "Off"
-                    },
-                    style = DrengrTheme.typography.caption,
-                    color = if (on && !offline) colors.accent else colors.textSecondary,
-                )
+    Box {
+        DrengrCard(
+            Modifier.fillMaxWidth().alpha(if (offline) 0.55f else 1f),
+            onLongClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                menuOpen = true
+            },
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(device.type.icon())
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(device.name, style = DrengrTheme.typography.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        when {
+                            offline -> "Offline"
+                            state.on == null -> device.sku
+                            on && state.brightness != null && device.brightness != null -> "On · ${state.brightness}%"
+                            on -> "On"
+                            else -> "Off"
+                        },
+                        style = DrengrTheme.typography.caption,
+                        color = if (on && !offline) colors.accent else colors.textSecondary,
+                    )
+                }
+                if (device.canPower) {
+                    Switch(
+                        checked = on,
+                        onCheckedChange = { viewModel.setPower(device, it) },
+                        enabled = !offline,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colors.onAccent,
+                            checkedTrackColor = colors.accent,
+                            uncheckedThumbColor = colors.textSecondary,
+                            uncheckedTrackColor = colors.surfaceElevated,
+                            uncheckedBorderColor = colors.divider,
+                        ),
+                    )
+                }
             }
-            if (device.canPower) {
-                Switch(
-                    checked = on,
-                    onCheckedChange = { viewModel.setPower(device, it) },
-                    enabled = !offline,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = colors.onAccent,
-                        checkedTrackColor = colors.accent,
-                        uncheckedThumbColor = colors.textSecondary,
-                        uncheckedTrackColor = colors.surfaceElevated,
-                        uncheckedBorderColor = colors.divider,
-                    ),
-                )
-            }
-        }
 
-        if (on && !offline) {
-            device.brightness?.let { range ->
-                BrightnessSlider(device, range, state.brightness, onChange = { viewModel.setBrightness(device, it) })
-            }
-            val swatches = (if (device.colorTemperature != null) WHITES else emptyList()) +
-                (if (device.canColor) COLORS else emptyList())
-            if (swatches.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    swatches.forEach { swatch ->
-                        val selected = swatch.kelvin != null && swatch.kelvin == state.colorTemperatureK ||
-                            swatch.rgb != null && swatch.rgb == state.color && state.colorTemperatureK == null
-                        SwatchDot(swatch, selected) {
-                            if (swatch.kelvin != null) {
-                                val range = device.colorTemperature ?: return@SwatchDot
-                                viewModel.setColorTemperature(device, swatch.kelvin.coerceIn(range))
-                            } else if (swatch.rgb != null) {
-                                viewModel.setColor(device, swatch.rgb)
+            if (on && !offline) {
+                device.brightness?.let { range ->
+                    BrightnessSlider(device, range, state.brightness, onChange = { viewModel.setBrightness(device, it) })
+                }
+                val swatches = (if (device.colorTemperature != null) WHITES else emptyList()) +
+                    (if (device.canColor) COLORS else emptyList())
+                if (swatches.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        swatches.forEach { swatch ->
+                            val selected = swatch.kelvin != null && swatch.kelvin == state.colorTemperatureK ||
+                                swatch.rgb != null && swatch.rgb == state.color && state.colorTemperatureK == null
+                            SwatchDot(swatch, selected) {
+                                if (swatch.kelvin != null) {
+                                    val range = device.colorTemperature ?: return@SwatchDot
+                                    viewModel.setColorTemperature(device, swatch.kelvin.coerceIn(range))
+                                } else if (swatch.rgb != null) {
+                                    viewModel.setColor(device, swatch.rgb)
+                                }
                             }
                         }
                     }
+                }
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            Text(
+                device.name,
+                style = DrengrTheme.typography.label,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            DropdownMenuItem(
+                text = { Text("Hide from this page") },
+                leadingIcon = { Icon(Icons.Outlined.VisibilityOff, null) },
+                onClick = {
+                    menuOpen = false
+                    onHide()
+                },
+            )
+        }
+    }
+}
+
+/** Hidden devices, collapsed by default, each with a Show button. */
+@Composable
+private fun HiddenDevices(devices: List<DeviceUi>, onShow: (GoveeDevice) -> Unit) {
+    val colors = DrengrTheme.colors
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    DrengrCard(
+        Modifier.fillMaxWidth(),
+        onClick = { expanded = !expanded },
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.VisibilityOff, null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Hidden devices (${devices.size})", style = DrengrTheme.typography.body)
+                Text("Not shown here and skipped by All off", style = DrengrTheme.typography.caption, color = colors.textSecondary)
+            }
+            Icon(
+                if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                if (expanded) "Collapse" else "Expand",
+                tint = colors.textSecondary,
+            )
+        }
+        if (expanded) {
+            Spacer(Modifier.height(6.dp))
+            devices.forEach { item ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(item.device.type.icon(), null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        item.device.name,
+                        style = DrengrTheme.typography.body,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { onShow(item.device) }) { Text("Show", color = colors.accent) }
                 }
             }
         }

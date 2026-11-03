@@ -71,11 +71,15 @@ class GoveeRepository @Inject constructor(
         GoveeApi.checkControl(request(GoveeApi.CONTROL, key(), GoveeApi.controlBody(device, command, requestId())))
     }
 
-    /** Turns every switchable device off. Runs in the background; [onDone] gets a summary. */
+    /**
+     * Turns every switchable device off, except ones hidden on the Smart home page. Runs in the
+     * background; [onDone] gets a summary.
+     */
     fun allOff(onDone: (String) -> Unit = {}) {
         scope.launch {
             val message = try {
-                val targets = devices().filter { it.canPower }
+                val hidden = settings.current().hiddenGoveeDevices
+                val targets = devices().filter { it.canPower && it.id !in hidden }
                 val failed = targets.map { device ->
                     async { runCatching { control(device, GoveeCommand.Power(false)) }.isFailure }
                 }.awaitAll().count { it }
