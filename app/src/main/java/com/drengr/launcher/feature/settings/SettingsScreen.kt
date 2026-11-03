@@ -230,9 +230,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
             item {
                 DrengrCard(Modifier.fillMaxWidth()) {
                     SwitchRow(
-                        title = "Swipe down for Command Center",
-                        subtitle = "On the Home page. Swipe up always opens Applications.",
-                        checked = settings.swipeDownForCommandCenter,
+                        title = "Swipe down for notifications",
+                        subtitle = "On the Home page. Swipe up always opens Command Center.",
+                        checked = settings.swipeDownForNotifications,
                         onChange = viewModel::setSwipeDown,
                     )
                 }

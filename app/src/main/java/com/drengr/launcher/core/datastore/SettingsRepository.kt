@@ -50,7 +50,7 @@ class SettingsRepository @Inject constructor(
         val LAUNCH_COUNTS = stringPreferencesKey("launch_counts")
         val QUICK_NOTE = stringPreferencesKey("quick_note")
         val USE_24_HOUR = stringPreferencesKey("use_24_hour")
-        val SWIPE_DOWN_CC = booleanPreferencesKey("swipe_down_command_center")
+        val SWIPE_DOWN_SHADE = booleanPreferencesKey("swipe_down_notifications")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
         val WEATHER_ENABLED = booleanPreferencesKey("weather_enabled")
         val WEATHER_PLACE = stringPreferencesKey("weather_place")
@@ -129,8 +129,8 @@ class SettingsRepository @Inject constructor(
         if (value == null) p.remove(Keys.USE_24_HOUR) else p[Keys.USE_24_HOUR] = value.toString()
     }
 
-    suspend fun setSwipeDownForCommandCenter(enabled: Boolean) =
-        store.edit { it[Keys.SWIPE_DOWN_CC] = enabled }
+    suspend fun setSwipeDownForNotifications(enabled: Boolean) =
+        store.edit { it[Keys.SWIPE_DOWN_SHADE] = enabled }
 
     suspend fun setWeatherEnabled(enabled: Boolean) = store.edit { it[Keys.WEATHER_ENABLED] = enabled }
 
@@ -159,7 +159,7 @@ class SettingsRepository @Inject constructor(
             put("appLayout", s.appLayout.name)
             put("gridColumns", s.gridColumns)
             s.use24Hour?.let { put("use24Hour", it) }
-            put("swipeDownForCommandCenter", s.swipeDownForCommandCenter)
+            put("swipeDownForNotifications", s.swipeDownForNotifications)
             put("quickNote", s.quickNote)
             put("wallpaperDim", s.wallpaperDim)
             put("weatherEnabled", s.weatherEnabled)
@@ -182,8 +182,8 @@ class SettingsRepository @Inject constructor(
             o.optString("appLayout").takeIf { it.isNotEmpty() }?.let { p[Keys.APP_LAYOUT] = it }
             if (o.has("gridColumns")) p[Keys.GRID_COLUMNS] = o.getInt("gridColumns").coerceIn(3, 6)
             if (o.has("use24Hour")) p[Keys.USE_24_HOUR] = o.getBoolean("use24Hour").toString()
-            if (o.has("swipeDownForCommandCenter")) {
-                p[Keys.SWIPE_DOWN_CC] = o.getBoolean("swipeDownForCommandCenter")
+            if (o.has("swipeDownForNotifications")) {
+                p[Keys.SWIPE_DOWN_SHADE] = o.getBoolean("swipeDownForNotifications")
             }
             if (o.has("quickNote")) p[Keys.QUICK_NOTE] = o.getString("quickNote")
             if (o.has("weatherEnabled")) p[Keys.WEATHER_ENABLED] = o.getBoolean("weatherEnabled")
@@ -208,7 +208,7 @@ class SettingsRepository @Inject constructor(
         launchCounts = this[Keys.LAUNCH_COUNTS].decodeCounts(),
         quickNote = this[Keys.QUICK_NOTE].orEmpty(),
         use24Hour = this[Keys.USE_24_HOUR]?.toBooleanStrictOrNull(),
-        swipeDownForCommandCenter = this[Keys.SWIPE_DOWN_CC] ?: true,
+        swipeDownForNotifications = this[Keys.SWIPE_DOWN_SHADE] ?: true,
         wallpaperDim = this[Keys.WALLPAPER_DIM] ?: UserSettings.DEFAULT_WALLPAPER_DIM,
         weatherEnabled = this[Keys.WEATHER_ENABLED] ?: true,
         weatherPlace = this[Keys.WEATHER_PLACE].decodePlace(),

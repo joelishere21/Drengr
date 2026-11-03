@@ -67,7 +67,8 @@ data class UserSettings(
     val quickNote: String = "",
     /** null = follow the system 12/24-hour setting. */
     val use24Hour: Boolean? = null,
-    val swipeDownForCommandCenter: Boolean = true,
+    /** Swipe down on Home pulls down the notification shade. */
+    val swipeDownForNotifications: Boolean = true,
     /** How strongly the launcher darkens the system wallpaper, 0–100 %. 100 hides it completely. */
     val wallpaperDim: Int = DEFAULT_WALLPAPER_DIM,
     val weatherEnabled: Boolean = true,

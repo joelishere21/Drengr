@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Swipe down on Home opens the notification shade. -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <!-- Weather (Open-Meteo). Nothing is sent until the user sets weather up. -->
     <uses-permission android:name="android.permission.INTERNET" />

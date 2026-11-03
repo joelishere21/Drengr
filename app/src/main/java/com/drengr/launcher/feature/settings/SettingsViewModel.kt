@@ -66,7 +66,7 @@ class SettingsViewModel @Inject constructor(
     fun setLayout(layout: AppLayout) = launch { repository.setAppLayout(layout) }
     fun setColumns(columns: Int) = launch { repository.setGridColumns(columns) }
     fun setUse24Hour(value: Boolean?) = launch { repository.setUse24Hour(value) }
-    fun setSwipeDown(enabled: Boolean) = launch { repository.setSwipeDownForCommandCenter(enabled) }
+    fun setSwipeDown(enabled: Boolean) = launch { repository.setSwipeDownForNotifications(enabled) }
     fun setWeatherEnabled(enabled: Boolean) = launch { repository.setWeatherEnabled(enabled) }
     fun setWeatherPlace(place: Place?) = launch {
         repository.setWeatherPlace(place)

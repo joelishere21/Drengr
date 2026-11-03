@@ -43,6 +43,7 @@ import com.drengr.launcher.core.designsystem.onWallpaper
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.PageId
 import com.drengr.launcher.feature.common.rememberPermissionRequest
+import com.drengr.launcher.integrations.system.expandNotificationShade
 import com.drengr.launcher.launcher.LauncherNavigator
 import com.drengr.launcher.launcher.LauncherUiState
 import com.drengr.launcher.launcher.components.AppItem
@@ -56,7 +57,7 @@ private const val AGENDA_LIMIT = 3
 private val FAVORITE_ROW_HEIGHT = 92.dp
 
 /**
- * Gestures: swipe down → Command Center (configurable), swipe up → Applications,
+ * Gestures: swipe down → notification shade (configurable), swipe up → Command Center,
  * long-press empty space → page editing (Settings).
  */
 @Composable
@@ -69,7 +70,7 @@ fun HomePage(
     val now by rememberCurrentTime()
     val agenda by viewModel.agenda.collectAsStateWithLifecycle()
     val weather by viewModel.weather.collectAsStateWithLifecycle()
-    val swipeDownEnabled by rememberUpdatedState(state.settings.swipeDownForCommandCenter)
+    val swipeDownEnabled by rememberUpdatedState(state.settings.swipeDownForNotifications)
     val threshold = with(LocalDensity.current) { 96.dp.toPx() }
 
     val use24h = state.settings.use24Hour ?: DateFormat.is24HourFormat(context)
@@ -113,8 +114,12 @@ fun HomePage(
                     onDragStart = { total = 0f },
                     onDragEnd = {
                         when {
-                            total > threshold && swipeDownEnabled -> navigator.openCommandCenter()
-                            total < -threshold -> navigator.goTo(PageId.Applications)
+                            total > threshold && swipeDownEnabled -> {
+                                if (!context.expandNotificationShade()) {
+                                    Toast.makeText(context, "This phone doesn't let apps open the notification shade", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            total < -threshold -> navigator.openCommandCenter()
                         }
                     },
                     onVerticalDrag = { change, amount ->

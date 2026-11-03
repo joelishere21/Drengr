@@ -11,7 +11,7 @@
 | Working Home screen and persistent dock | ✅ Clock, date, weather, next alarm, agenda, quick note, favorites over your wallpaper; dock with 4 apps + Apps + Command Center |
 | App discovery, icons, search, favorites, launching | ✅ LauncherApps (incl. work profile), fuzzy search, categories, grid/list, long-press menu, app shortcuts |
 | Blue theme applied consistently | ✅ Central design tokens; 6 accents selectable |
-| Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe down on Home), ~30 built-in actions |
+| Command Center opens/closes, launches apps, runs actions | ✅ Overlay (dock button or swipe up on Home), ~30 built-in actions |
 | Navigation and preferences persist across restarts | ✅ DataStore (last page, favorites, dock, page order, theme, recents, note) |
 | Test on the S25 Ultra and one more device profile | ⏳ Needs you: see "Install on your phone" |
 
@@ -31,8 +31,8 @@ Coordinates are rounded to ~1 km before being sent; results are cached for 30 mi
 ## Gestures
 
 - **Swipe left/right:** change page (no wraparound)
-- **Home page, swipe down:** Command Center (can be turned off in Settings)
-- **Home page, swipe up:** Applications
+- **Home page, swipe down:** notification shade (can be turned off in Settings)
+- **Home page, swipe up:** Command Center
 - **Home page, long-press on empty space:** Settings (page editing)
 - **Long-press an app:** shortcuts, favorite, dock, app info, uninstall
 - **Home button / Back:** close the overlay, then return to the Home page
