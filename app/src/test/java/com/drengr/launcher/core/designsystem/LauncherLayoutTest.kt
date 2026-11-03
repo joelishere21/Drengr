@@ -56,4 +56,18 @@ class LauncherLayoutTest {
         assertEquals(6, tabletLandscape.favoriteColumns(600))
         assertEquals(8, tabletLandscape.favoriteColumns(2000))
     }
+
+    @Test fun cardColumns() {
+        assertEquals(1, phone.cardColumns(380))
+        assertEquals(2, tabletPortrait.cardColumns(760))
+        assertEquals(3, tabletLandscape.cardColumns(1240))
+        assertEquals(1, tabletPortrait.cardColumns(300))
+    }
+
+    @Test fun overlaysAndTextCapOnlyOnWideWindows() {
+        assertEquals(androidx.compose.ui.unit.Dp.Unspecified, phone.overlayMaxWidth)
+        assertEquals(androidx.compose.ui.unit.Dp.Unspecified, phone.readableMaxWidth)
+        assertTrue(tabletPortrait.isWide)
+        assertEquals(720f, tabletLandscape.overlayMaxWidth.value)
+    }
 }

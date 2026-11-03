@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.drengr.launcher.feature.common.TwoColumns
 import com.drengr.launcher.integrations.media.MediaSessionRepository
 import com.drengr.launcher.integrations.media.NowPlaying
 import com.drengr.launcher.integrations.notifications.NotificationRepository
@@ -157,82 +158,88 @@ fun MediaPage(
         PageHeader("Media", subtitle = subtitle, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
-        DrengrCard(Modifier.fillMaxWidth()) {
-            if (current != null) {
-                TrackInfo(current, onOpen = { viewModel.openPlayer(current) })
-                Spacer(Modifier.height(14.dp))
-                PlaybackProgress(current, onSeek = viewModel::seekTo)
-            } else {
-                IdleInfo(
-                    audioActive = audio.isMusicActive,
-                    hasAccess = hasAccess,
-                    onRequestAccess = viewModel::requestAccess,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RoundButton(
-                    Icons.Outlined.SkipPrevious, "Previous", 52.dp, viewModel::previous,
-                    enabled = current?.canSkipPrevious ?: true,
-                )
-                val isPlaying = current?.isPlaying ?: audio.isMusicActive
-                RoundButton(
-                    if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    if (isPlaying) "Pause" else "Play",
-                    68.dp,
-                    viewModel::playPause,
-                    primary = true,
-                )
-                RoundButton(
-                    Icons.Outlined.SkipNext, "Next", 52.dp, viewModel::next,
-                    enabled = current?.canSkipNext ?: true,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RoundButton(Icons.AutoMirrored.Outlined.VolumeDown, "Volume down", 40.dp, { viewModel.volume(false) })
-                LinearProgressIndicator(
-                    progress = { audio.volumeFraction },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    color = colors.accent,
-                    trackColor = colors.divider,
-                    strokeCap = StrokeCap.Round,
-                    gapSize = 0.dp,
-                    drawStopIndicator = {},
-                )
-                RoundButton(Icons.AutoMirrored.Outlined.VolumeUp, "Volume up", 40.dp, { viewModel.volume(true) })
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-        DrengrCard(Modifier.fillMaxWidth(), onClick = { navigator.runActionById("volume") }) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(audio.outputKind.icon())
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Audio output", style = DrengrTheme.typography.label, color = colors.textSecondary)
-                    Text(audio.outputLabel, style = DrengrTheme.typography.title)
+        // Wide windows: player on the left, output and media apps beside it.
+        TwoColumns(
+            stackedGap = 12.dp,
+            first = {
+                DrengrCard(Modifier.fillMaxWidth()) {
+                    if (current != null) {
+                        TrackInfo(current, onOpen = { viewModel.openPlayer(current) })
+                        Spacer(Modifier.height(14.dp))
+                        PlaybackProgress(current, onSeek = viewModel::seekTo)
+                    } else {
+                        IdleInfo(
+                            audioActive = audio.isMusicActive,
+                            hasAccess = hasAccess,
+                            onRequestAccess = viewModel::requestAccess,
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RoundButton(
+                            Icons.Outlined.SkipPrevious, "Previous", 52.dp, viewModel::previous,
+                            enabled = current?.canSkipPrevious ?: true,
+                        )
+                        val isPlaying = current?.isPlaying ?: audio.isMusicActive
+                        RoundButton(
+                            if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                            if (isPlaying) "Pause" else "Play",
+                            68.dp,
+                            viewModel::playPause,
+                            primary = true,
+                        )
+                        RoundButton(
+                            Icons.Outlined.SkipNext, "Next", 52.dp, viewModel::next,
+                            enabled = current?.canSkipNext ?: true,
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RoundButton(Icons.AutoMirrored.Outlined.VolumeDown, "Volume down", 40.dp, { viewModel.volume(false) })
+                        LinearProgressIndicator(
+                            progress = { audio.volumeFraction },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 12.dp),
+                            color = colors.accent,
+                            trackColor = colors.divider,
+                            strokeCap = StrokeCap.Round,
+                            gapSize = 0.dp,
+                            drawStopIndicator = {},
+                        )
+                        RoundButton(Icons.AutoMirrored.Outlined.VolumeUp, "Volume up", 40.dp, { viewModel.volume(true) })
+                    }
                 }
-            }
-        }
-
-        if (mediaApps.isNotEmpty()) {
-            Spacer(Modifier.height(20.dp))
-            SectionHeader("Media apps")
-            Spacer(Modifier.height(4.dp))
-            mediaApps.take(8).chunked(4).forEach { row ->
-                Row(Modifier.fillMaxWidth()) {
-                    row.forEach { AppItem(it, Modifier.weight(1f)) }
-                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            },
+            second = {
+                DrengrCard(Modifier.fillMaxWidth(), onClick = { navigator.runActionById("volume") }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(audio.outputKind.icon())
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Audio output", style = DrengrTheme.typography.label, color = colors.textSecondary)
+                            Text(audio.outputLabel, style = DrengrTheme.typography.title)
+                        }
+                    }
                 }
-            }
-        }
+
+                if (mediaApps.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    SectionHeader("Media apps")
+                    Spacer(Modifier.height(4.dp))
+                    mediaApps.take(8).chunked(4).forEach { row ->
+                        Row(Modifier.fillMaxWidth()) {
+                            row.forEach { AppItem(it, Modifier.weight(1f)) }
+                            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+            },
+        )
         Spacer(Modifier.height(16.dp))
     }
 }

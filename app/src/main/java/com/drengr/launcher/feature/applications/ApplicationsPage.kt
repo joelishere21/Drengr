@@ -1,5 +1,6 @@
 package com.drengr.launcher.feature.applications
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -119,6 +120,7 @@ fun ApplicationsPage(
             value = query,
             onValueChange = { query = it },
             placeholder = "Search apps",
+            modifier = Modifier.widthIn(max = windowLayout.readableMaxWidth),
             onSubmit = {
                 results.firstOrNull()?.let {
                     focusManager.clearFocus()

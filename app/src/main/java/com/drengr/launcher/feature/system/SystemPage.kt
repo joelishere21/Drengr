@@ -1,5 +1,8 @@
 package com.drengr.launcher.feature.system
 
+import com.drengr.launcher.feature.common.CardGrid
+import com.drengr.launcher.core.designsystem.WidthClass
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -103,6 +106,59 @@ fun SystemPage(
         onPauseOrDispose { }
     }
     val controls = viewModel.registry.available(context).filter { it.category == ActionCategory.System }
+    val layout = LocalLauncherLayout.current
+    val batteryCard: @Composable (Modifier) -> Unit = {
+        StatusCard(
+            icon = if (battery.isCharging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
+            title = "Battery",
+            value = "${battery.level}%",
+            detail = buildString {
+                append(if (battery.isCharging) "Charging" else "On battery")
+                battery.source?.let { append(" · $it") }
+                append(" · %.1f°C".format(battery.temperatureC))
+            },
+            progress = battery.level / 100f,
+            modifier = it,
+            onClick = { navigator.runActionById("battery") },
+        )
+    }
+    val networkCard: @Composable (Modifier) -> Unit = {
+        StatusCard(
+            icon = network.icon(),
+            title = "Network",
+            value = network.type.label,
+            detail = when {
+                network.type == NetworkType.None -> "No connection"
+                !network.validated -> "No internet access"
+                network.metered -> "Metered"
+                else -> "Connected"
+            },
+            modifier = it,
+            onClick = { navigator.runActionById("internet") },
+        )
+    }
+    val storageCard: @Composable (Modifier) -> Unit = {
+        StatusCard(
+            icon = Icons.Outlined.Storage,
+            title = "Storage",
+            value = formatBytes(storage.freeBytes),
+            detail = "free of ${formatBytes(storage.totalBytes)}",
+            progress = storage.usedFraction,
+            modifier = it,
+            onClick = { navigator.runActionById("storage") },
+        )
+    }
+    val audioCard: @Composable (Modifier) -> Unit = {
+        StatusCard(
+            icon = Icons.AutoMirrored.Outlined.VolumeUp,
+            title = "Audio",
+            value = "${(audio.volumeFraction * 100).toInt()}%",
+            detail = "${audio.ringerMode} · ${audio.outputLabel}",
+            progress = audio.volumeFraction,
+            modifier = it,
+            onClick = { navigator.runActionById("volume") },
+        )
+    }
 
     Column(
         Modifier
@@ -113,72 +169,32 @@ fun SystemPage(
         PageHeader("System", subtitle = android.os.Build.MODEL, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatusCard(
-                icon = if (battery.isCharging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
-                title = "Battery",
-                value = "${battery.level}%",
-                detail = buildString {
-                    append(if (battery.isCharging) "Charging" else "On battery")
-                    battery.source?.let { append(" · $it") }
-                    append(" · %.1f°C".format(battery.temperatureC))
-                },
-                progress = battery.level / 100f,
-                modifier = Modifier.weight(1f),
-                onClick = { navigator.runActionById("battery") },
-            )
-            StatusCard(
-                icon = network.icon(),
-                title = "Network",
-                value = network.type.label,
-                detail = when {
-                    network.type == NetworkType.None -> "No connection"
-                    !network.validated -> "No internet access"
-                    network.metered -> "Metered"
-                    else -> "Connected"
-                },
-                modifier = Modifier.weight(1f),
-                onClick = { navigator.runActionById("internet") },
-            )
+        // Four across on wide windows, two by two on phones.
+        val statusRows = if (layout.widthClass == WidthClass.Expanded) {
+            listOf(listOf(batteryCard, networkCard, storageCard, audioCard))
+        } else {
+            listOf(listOf(batteryCard, networkCard), listOf(storageCard, audioCard))
         }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatusCard(
-                icon = Icons.Outlined.Storage,
-                title = "Storage",
-                value = formatBytes(storage.freeBytes),
-                detail = "free of ${formatBytes(storage.totalBytes)}",
-                progress = storage.usedFraction,
-                modifier = Modifier.weight(1f),
-                onClick = { navigator.runActionById("storage") },
-            )
-            StatusCard(
-                icon = Icons.AutoMirrored.Outlined.VolumeUp,
-                title = "Audio",
-                value = "${(audio.volumeFraction * 100).toInt()}%",
-                detail = "${audio.ringerMode} · ${audio.outputLabel}",
-                progress = audio.volumeFraction,
-                modifier = Modifier.weight(1f),
-                onClick = { navigator.runActionById("volume") },
-            )
+        statusRows.forEachIndexed { index, row ->
+            if (index > 0) Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { card -> card(Modifier.weight(1f)) }
+            }
         }
 
+        // Each list is one card per row on phones, two or three across on wide windows.
         Spacer(Modifier.height(20.dp))
         SectionHeader("Direct controls")
         Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            controls.filter { it.kind == ActionKind.Direct }.forEach { action ->
-                ActionRow(action, onClick = { navigator.runAction(action) })
-            }
+        CardGrid(controls.filter { it.kind == ActionKind.Direct }, itemKey = { it.id }) { action ->
+            ActionRow(action, onClick = { navigator.runAction(action) })
         }
 
         Spacer(Modifier.height(20.dp))
         SectionHeader("Opens Android Settings")
         Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            controls.filter { it.kind != ActionKind.Direct }.forEach { action ->
-                ActionRow(action, onClick = { navigator.runAction(action) })
-            }
+        CardGrid(controls.filter { it.kind != ActionKind.Direct }, itemKey = { it.id }) { action ->
+            ActionRow(action, onClick = { navigator.runAction(action) })
         }
         Spacer(Modifier.height(16.dp))
     }

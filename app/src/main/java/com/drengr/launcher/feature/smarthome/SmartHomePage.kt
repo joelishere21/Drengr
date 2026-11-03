@@ -1,5 +1,7 @@
 package com.drengr.launcher.feature.smarthome
 
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
+import androidx.compose.foundation.layout.widthIn
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,7 +36,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.VerticalAlignTop
-import androidx.compose.runtime.key
+import com.drengr.launcher.feature.common.CardGrid
 import com.drengr.launcher.core.common.inOrder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -177,19 +179,16 @@ fun SmartHomePage(viewModel: SmartHomeViewModel = hiltViewModel()) {
                             color = DrengrTheme.colors.textSecondary,
                         )
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        shown.forEachIndexed { index, item ->
-                            key(item.device.id) {
-                                DeviceCard(
-                                    item = item,
-                                    viewModel = viewModel,
-                                    position = index,
-                                    lastPosition = shown.lastIndex,
-                                    onMove = { viewModel.move(item.device, it) },
-                                    onHide = { viewModel.setHidden(item.device, true) },
-                                )
-                            }
-                        }
+                    // One device per row on phones, two or three across on wide windows.
+                    CardGrid(shown, spacing = 10.dp, itemKey = { it.device.id }) { item ->
+                        DeviceCard(
+                            item = item,
+                            viewModel = viewModel,
+                            position = shown.indexOf(item),
+                            lastPosition = shown.lastIndex,
+                            onMove = { viewModel.move(item.device, it) },
+                            onHide = { viewModel.setHidden(item.device, true) },
+                        )
                     }
                     Spacer(Modifier.height(16.dp))
                     if (hiddenDevices.isEmpty()) {
@@ -450,7 +449,7 @@ private fun SetupCard(saving: Boolean, onSave: (String) -> Unit) {
     val colors = DrengrTheme.colors
     var key by rememberSaveable { mutableStateOf("") }
     var reveal by rememberSaveable { mutableStateOf(false) }
-    DrengrCard(Modifier.fillMaxWidth()) {
+    DrengrCard(Modifier.widthIn(max = LocalLauncherLayout.current.readableMaxWidth).fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(Icons.Outlined.Lightbulb)
             Spacer(Modifier.width(12.dp))

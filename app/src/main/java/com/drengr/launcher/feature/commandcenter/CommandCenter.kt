@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -57,6 +58,7 @@ import com.drengr.launcher.core.designsystem.IconBadge
 import com.drengr.launcher.core.designsystem.Pill
 import com.drengr.launcher.core.designsystem.DrengrSearchField
 import com.drengr.launcher.core.designsystem.DrengrTheme
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
 import com.drengr.launcher.core.designsystem.SectionHeader
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.UserSettings
@@ -199,8 +201,10 @@ fun CommandCenterOverlay(
                 ),
         ) {
             val panelState = remember { MutableTransitionState(false).apply { targetState = true } }
+            val layout = LocalLauncherLayout.current
             AnimatedVisibility(
                 visibleState = panelState,
+                modifier = Modifier.align(Alignment.TopCenter),
                 enter = slideInVertically { -it / 4 },
                 exit = slideOutVertically { -it / 4 },
             ) {
@@ -210,6 +214,9 @@ fun CommandCenterOverlay(
                         .systemBarsPadding()
                         .imePadding()
                         .padding(16.dp)
+                        // On tablets: a centered panel a little below the top, like a desktop launcher.
+                        .padding(top = if (layout.isLargeScreen) 40.dp else 0.dp)
+                        .widthIn(max = layout.overlayMaxWidth)
                         .fillMaxWidth()
                         .clip(shape)
                         .background(colors.surface)

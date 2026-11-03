@@ -67,6 +67,7 @@ import com.drengr.launcher.core.designsystem.Pill
 import com.drengr.launcher.core.designsystem.DrengrCard
 import com.drengr.launcher.core.designsystem.DrengrSearchField
 import com.drengr.launcher.core.designsystem.DrengrTheme
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
 import com.drengr.launcher.core.designsystem.SectionHeader
 import com.drengr.launcher.core.domain.AppInfo
 import com.drengr.launcher.core.domain.AppLayout
@@ -116,20 +117,28 @@ fun SettingsScreen(viewModel: SettingsViewModel, settings: UserSettings, onBack:
         context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
     }
 
+    // Wide windows keep a readable column in the middle; the margins still scroll the list.
+    val layout = LocalLauncherLayout.current
+    val side = if (layout.isWide) {
+        maxOf(20.dp, (layout.widthDp.dp - layout.readableMaxWidth) / 2)
+    } else {
+        20.dp
+    }
+
     Column(
         Modifier
             .fillMaxSize()
             .background(colors.background)
             .systemBarsPadding(),
     ) {
-        Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = side - 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") }
             Text("Settings", style = DrengrTheme.typography.headline)
         }
         LazyColumn(
             // Edge-to-edge windows aren't resized for the keyboard; shrink the list ourselves.
             modifier = Modifier.imePadding(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = side, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {

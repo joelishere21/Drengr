@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.drengr.launcher.core.datastore.SettingsRepository
 import com.drengr.launcher.core.domain.UserSettings
+import com.drengr.launcher.feature.common.TwoColumns
 import com.drengr.launcher.feature.common.rememberPermissionRequest
 import com.drengr.launcher.feature.home.Agenda
 import com.drengr.launcher.feature.home.AgendaUi
@@ -152,69 +153,75 @@ fun ProductivityPage(
         PageHeader("Productivity", subtitle = today, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
-        WeekAgenda(
-            state = agenda,
-            items = agendaItems,
-            onRequestAccess = requestCalendar,
-            onOpenCalendar = { navigator.runActionById("calendar") },
-            onOpenEvent = { event ->
-                runCatching { context.startActivity(viewModel.calendarIntent(event)) }
-                    .onFailure { navigator.runActionById("calendar") }
+        // Wide windows: the week on the left, note and actions beside it.
+        TwoColumns(
+            stackedGap = 12.dp,
+            first = {
+                WeekAgenda(
+                    state = agenda,
+                    items = agendaItems,
+                    onRequestAccess = requestCalendar,
+                    onOpenCalendar = { navigator.runActionById("calendar") },
+                    onOpenEvent = { event ->
+                        runCatching { context.startActivity(viewModel.calendarIntent(event)) }
+                            .onFailure { navigator.runActionById("calendar") }
+                    },
+                )
             },
-        )
-
-        Spacer(Modifier.height(12.dp))
-        DrengrCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Quick note", style = DrengrTheme.typography.title, modifier = Modifier.weight(1f))
-                Pill("Saved on device")
-            }
-            Spacer(Modifier.height(8.dp))
-            BasicTextField(
-                value = note,
-                onValueChange = viewModel::updateNote,
-                textStyle = DrengrTheme.typography.body.copy(color = DrengrTheme.colors.textPrimary),
-                cursorBrush = SolidColor(DrengrTheme.colors.accent),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 120.dp),
-                decorationBox = { inner ->
-                    if (note.isEmpty()) {
-                        Text(
-                            "Write something down…",
-                            style = DrengrTheme.typography.body,
-                            color = DrengrTheme.colors.textSecondary,
-                        )
+            second = {
+                DrengrCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Quick note", style = DrengrTheme.typography.title, modifier = Modifier.weight(1f))
+                        Pill("Saved on device")
                     }
-                    inner()
-                },
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-        SectionHeader("Quick actions")
-        Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            actions.filter { it.id != "quick_note" }.forEach { action ->
-                ActionRow(action, onClick = { navigator.runAction(action) })
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-        DrengrCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(Icons.Outlined.Description)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Recent documents", style = DrengrTheme.typography.title)
-                    Text(
-                        "Coming later via the Storage Access Framework.",
-                        style = DrengrTheme.typography.caption,
-                        color = DrengrTheme.colors.textSecondary,
+                    Spacer(Modifier.height(8.dp))
+                    BasicTextField(
+                        value = note,
+                        onValueChange = viewModel::updateNote,
+                        textStyle = DrengrTheme.typography.body.copy(color = DrengrTheme.colors.textPrimary),
+                        cursorBrush = SolidColor(DrengrTheme.colors.accent),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp),
+                        decorationBox = { inner ->
+                            if (note.isEmpty()) {
+                                Text(
+                                    "Write something down…",
+                                    style = DrengrTheme.typography.body,
+                                    color = DrengrTheme.colors.textSecondary,
+                                )
+                            }
+                            inner()
+                        },
                     )
                 }
-            }
-        }
+
+                Spacer(Modifier.height(20.dp))
+                SectionHeader("Quick actions")
+                Spacer(Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    actions.filter { it.id != "quick_note" }.forEach { action ->
+                        ActionRow(action, onClick = { navigator.runAction(action) })
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+                DrengrCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(Icons.Outlined.Description)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Recent documents", style = DrengrTheme.typography.title)
+                            Text(
+                                "Coming later via the Storage Access Framework.",
+                                style = DrengrTheme.typography.caption,
+                                color = DrengrTheme.colors.textSecondary,
+                            )
+                        }
+                    }
+                }
+            },
+        )
         Spacer(Modifier.height(16.dp))
     }
 }

@@ -1,7 +1,10 @@
 package com.drengr.launcher.core.designsystem
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.drengr.launcher.core.domain.UserSettings
@@ -52,6 +55,19 @@ data class LauncherLayout(val widthDp: Int, val heightDp: Int) {
     /** The dock stays a compact bar on wide screens instead of spanning the whole window. */
     val dockMaxWidth: Dp get() = if (widthClass == WidthClass.Compact) Dp.Unspecified else DOCK_MAX_WIDTH
 
+    /** Pages lay their sections out side by side once the window is wider than a phone. */
+    val isWide: Boolean get() = widthClass != WidthClass.Compact
+
+    /** Overlays (Command Center) become a centered panel instead of spanning the window. */
+    val overlayMaxWidth: Dp get() = if (isWide) OVERLAY_MAX_WIDTH else Dp.Unspecified
+
+    /** Longest comfortable line length for text-heavy screens such as Settings. */
+    val readableMaxWidth: Dp get() = if (isWide) READABLE_MAX_WIDTH else Dp.Unspecified
+
+    /** Cards per row for a list of similar cards (devices, actions) in [availableWidthDp]. */
+    fun cardColumns(availableWidthDp: Int): Int =
+        if (!isWide) 1 else (availableWidthDp / CARD_MIN_WIDTH).coerceIn(1, MAX_CARD_COLUMNS)
+
     /**
      * Grid columns for the app list. [userColumns] is the phone setting; wider areas add columns
      * so icons keep roughly the size they have on a phone (a little bigger on tablets).
@@ -83,7 +99,11 @@ data class LauncherLayout(val widthDp: Int, val heightDp: Int) {
         private const val MAX_APP_COLUMNS = 12
         private const val LIST_ROW_WIDTH = 320
         private const val MAX_LIST_COLUMNS = 3
+        private const val CARD_MIN_WIDTH = 340
+        private const val MAX_CARD_COLUMNS = 3
         private val DOCK_MAX_WIDTH = 640.dp
+        private val OVERLAY_MAX_WIDTH = 720.dp
+        private val READABLE_MAX_WIDTH = 720.dp
 
         /** A typical phone in portrait. */
         val Phone = LauncherLayout(widthDp = 412, heightDp = 915)
@@ -91,3 +111,15 @@ data class LauncherLayout(val widthDp: Int, val heightDp: Int) {
 }
 
 val LocalLauncherLayout = staticCompositionLocalOf { LauncherLayout.Phone }
+
+/**
+ * Layout for the current window. The configuration's size is this window's (not the whole
+ * screen's), so split screen and DeX get a layout that fits the space they have.
+ */
+@Composable
+fun rememberLauncherLayout(): LauncherLayout {
+    val configuration = LocalConfiguration.current
+    return remember(configuration.screenWidthDp, configuration.screenHeightDp) {
+        LauncherLayout(widthDp = configuration.screenWidthDp, heightDp = configuration.screenHeightDp)
+    }
+}

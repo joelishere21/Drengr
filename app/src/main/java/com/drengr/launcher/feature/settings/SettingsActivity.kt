@@ -7,9 +7,12 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.drengr.launcher.core.designsystem.DrengrTheme
+import com.drengr.launcher.core.designsystem.LocalLauncherLayout
+import com.drengr.launcher.core.designsystem.rememberLauncherLayout
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -25,7 +28,9 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             DrengrTheme(accent = settings.accent) {
-                SettingsScreen(viewModel = viewModel, settings = settings, onBack = ::finish)
+                CompositionLocalProvider(LocalLauncherLayout provides rememberLauncherLayout()) {
+                    SettingsScreen(viewModel = viewModel, settings = settings, onBack = ::finish)
+                }
             }
         }
     }
