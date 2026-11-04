@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older: Auto Backup to the user's Google account.
+     Settings, notes and tasks are backed up. Credentials, listening history and file access
+     grants stay on the device (the grants wouldn't work on another phone anyway). -->
+<full-backup-content>
+    <exclude domain="file" path="datastore/drengr_secrets.preferences_pb" />
+    <exclude domain="file" path="datastore/drengr_media_history.preferences_pb" />
+    <exclude domain="file" path="datastore/drengr_documents.preferences_pb" />
+</full-backup-content>

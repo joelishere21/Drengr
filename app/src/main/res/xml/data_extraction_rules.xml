@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: the same rules for cloud backup and for device-to-device transfer. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="datastore/drengr_secrets.preferences_pb" />
+        <exclude domain="file" path="datastore/drengr_media_history.preferences_pb" />
+        <exclude domain="file" path="datastore/drengr_documents.preferences_pb" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/drengr_secrets.preferences_pb" />
+        <exclude domain="file" path="datastore/drengr_media_history.preferences_pb" />
+        <exclude domain="file" path="datastore/drengr_documents.preferences_pb" />
+    </device-transfer>
+</data-extraction-rules>

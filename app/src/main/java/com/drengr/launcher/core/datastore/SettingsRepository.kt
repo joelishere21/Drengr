@@ -1,6 +1,7 @@
 package com.drengr.launcher.core.datastore
 
 import android.content.Context
+import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -37,12 +38,40 @@ private const val SETTINGS_FORMAT = "drengr-settings"
 
 private val Context.drengrDataStore: DataStore<Preferences> by preferencesDataStore(name = "drengr_settings")
 
+internal val SECRET_GOVEE_KEY = stringPreferencesKey("govee_api_key")
+
+/**
+ * Credentials, in their own file so it can be left out of Android's cloud backup and device
+ * transfer (see res/xml/backup_rules.xml). The Govee key used to live in drengr_settings; the
+ * migration moves it here and deletes the old copy.
+ */
+private val Context.secretsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "drengr_secrets",
+    produceMigrations = { context -> listOf(GoveeKeyMigration(context.drengrDataStore)) },
+)
+
+internal class GoveeKeyMigration(private val settings: DataStore<Preferences>) : DataMigration<Preferences> {
+    private val oldKey = stringPreferencesKey("govee_api_key")
+
+    override suspend fun shouldMigrate(currentData: Preferences): Boolean = settings.data.first()[oldKey] != null
+
+    override suspend fun migrate(currentData: Preferences): Preferences {
+        val old = settings.data.first()[oldKey] ?: return currentData
+        return currentData.toMutablePreferences().apply { if (this[SECRET_GOVEE_KEY] == null) this[SECRET_GOVEE_KEY] = old }
+    }
+
+    override suspend fun cleanUp() {
+        settings.edit { it.remove(oldKey) }
+    }
+}
+
 /** Single source of truth for user preferences. Screens never write preferences directly. */
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext context: Context,
 ) {
     private val store = context.drengrDataStore
+    private val secrets = context.secretsDataStore
 
     private object Keys {
         val ACCENT = stringPreferencesKey("accent")
@@ -71,8 +100,6 @@ class SettingsRepository @Inject constructor(
         val NOTIFICATION_DOTS = booleanPreferencesKey("notification_dots")
         val HIDDEN_GOVEE = stringPreferencesKey("hidden_govee_devices")
         val GOVEE_ORDER = stringPreferencesKey("govee_device_order")
-        /** A credential: kept out of [UserSettings] and never exported. */
-        val GOVEE_API_KEY = stringPreferencesKey("govee_api_key")
         val WALLPAPER_DIM = intPreferencesKey("wallpaper_dim")
         val WEATHER_ENABLED = booleanPreferencesKey("weather_enabled")
         val WEATHER_PLACE = stringPreferencesKey("weather_place")
@@ -85,13 +112,16 @@ class SettingsRepository @Inject constructor(
 
     suspend fun current(): UserSettings = settings.first()
 
-    /** The user's Govee API key, or null. Deliberately not part of [settings] or backups. */
-    val goveeApiKey: Flow<String?> = store.data
+    /**
+     * The user's Govee API key, or null. Deliberately not part of [settings], settings exports or
+     * Android backups: it stays on this phone.
+     */
+    val goveeApiKey: Flow<String?> = secrets.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { it[Keys.GOVEE_API_KEY] }
+        .map { it[SECRET_GOVEE_KEY] }
 
-    suspend fun setGoveeApiKey(key: String?) = store.edit { p ->
-        if (key.isNullOrBlank()) p.remove(Keys.GOVEE_API_KEY) else p[Keys.GOVEE_API_KEY] = key
+    suspend fun setGoveeApiKey(key: String?) = secrets.edit { p ->
+        if (key.isNullOrBlank()) p.remove(SECRET_GOVEE_KEY) else p[SECRET_GOVEE_KEY] = key
     }
 
     suspend fun setAccent(accent: AccentColor) = store.edit { it[Keys.ACCENT] = accent.name }

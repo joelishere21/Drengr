@@ -87,6 +87,9 @@ export ANDROID_HOME=~/Android/Sdk
 
 `local.properties` (git-ignored) points at the SDK.
 
+Release builds (R8-shrunk, Play App Signing with an upload key): see [RELEASE.md](RELEASE.md).
+What Drengr stores, sends and asks for: [PRIVACY.md](PRIVACY.md).
+
 ## Install on your phone (Galaxy S25 Ultra)
 
 1. Turn on **Settings → About phone → Software information → tap Build number 7×** to enable Developer options.
@@ -127,7 +130,7 @@ that needs them; if Android stops showing the prompt, the next tap opens App inf
 (Settings → Notifications & media, or the Media page) is optional: it powers notification dots and the Media
 page's track, artwork, progress and seeking. Drengr keeps only per-app counts, never notification content.
 The Smart home page talks to Govee's cloud API only after you paste your personal API key (Govee Home app →
-Profile → Settings → Apply for API Key). The key stays on the phone and is left out of settings exports;
+Profile → Settings → Apply for API Key). The key stays on the phone and is left out of settings exports and Android backups;
 Settings → Smart home removes it. Hide the page in Settings → Pages if you don't use Govee.
 
 ## Adding a Command Center action
