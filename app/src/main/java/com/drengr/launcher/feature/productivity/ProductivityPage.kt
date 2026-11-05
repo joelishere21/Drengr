@@ -1,6 +1,5 @@
 package com.drengr.launcher.feature.productivity
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -55,12 +54,7 @@ import com.drengr.launcher.core.designsystem.PageHeader
 import com.drengr.launcher.core.designsystem.Pill
 import com.drengr.launcher.core.designsystem.DrengrCard
 import com.drengr.launcher.core.designsystem.DrengrTheme
-import com.drengr.launcher.core.designsystem.SectionHeader
-import com.drengr.launcher.feature.common.ActionRow
 import com.drengr.launcher.launcher.LauncherNavigator
-import com.drengr.launcher.plugins.ActionCategory
-import com.drengr.launcher.plugins.ActionRegistry
-import com.drengr.launcher.plugins.LauncherAction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -76,7 +70,6 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductivityViewModel @Inject constructor(
     private val settings: SettingsRepository,
-    private val registry: ActionRegistry,
     private val calendar: CalendarRepository,
     private val documentsRepository: DocumentsRepository,
 ) : ViewModel() {
@@ -124,10 +117,6 @@ class ProductivityViewModel @Inject constructor(
             _messages.send("Drengr can't share “${ready.name}” with another app.")
         }
     }
-
-    fun quickActions(context: android.content.Context): List<LauncherAction> =
-        registry.available(context).filter { it.category == ActionCategory.Productivity }
-
 }
 
 @Composable
@@ -140,7 +129,6 @@ fun ProductivityPage(
     val notesAndTasks: NotesAndTasksViewModel = hiltViewModel()
     val notes by notesAndTasks.notes.collectAsStateWithLifecycle()
     val tasks by notesAndTasks.tasks.collectAsStateWithLifecycle()
-    val actions = viewModel.quickActions(context)
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE · MMM d"))
     val agenda by viewModel.agenda.collectAsStateWithLifecycle()
     val documents by viewModel.documents.collectAsStateWithLifecycle()
@@ -172,7 +160,7 @@ fun ProductivityPage(
         PageHeader("Productivity", subtitle = today, modifier = Modifier.padding(top = 12.dp))
         Spacer(Modifier.height(16.dp))
 
-        // Wide windows: the week and tasks on the left, notes and actions beside it.
+        // Wide windows: the week and tasks on the left, notes and documents beside it.
         TwoColumns(
             stackedGap = 12.dp,
             first = {
@@ -191,17 +179,7 @@ fun ProductivityPage(
             },
             second = {
                 NotesCard(notes, onOpen = notesAndTasks::openNote, onNew = notesAndTasks::newNote)
-
-                Spacer(Modifier.height(20.dp))
-                SectionHeader("Quick actions")
-                Spacer(Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    actions.filter { it.id != "quick_note" }.forEach { action ->
-                        ActionRow(action, onClick = { navigator.runAction(action) })
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(12.dp))
                 RecentDocumentsCard(
                     documents = documents,
                     onAdd = viewModel::addDocuments,
